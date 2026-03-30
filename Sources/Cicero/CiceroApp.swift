@@ -6,8 +6,14 @@ struct CiceroApp: App {
     @State private var localServer: LocalServer?
     @State private var fileWatcher: FileWatcher?
 
+    init() {
+        // Show dock icon and make windows interactive (required for SwiftPM executables)
+        NSApplication.shared.setActivationPolicy(.regular)
+    }
+
     var body: some Scene {
-        WindowGroup {
+        // Single window — prevents cmd+N from spawning duplicates
+        Window("Cicero", id: "main") {
             ContentView()
                 .environment(presentation)
                 .task {
@@ -15,11 +21,13 @@ struct CiceroApp: App {
                         localServer = LocalServer(presentation: presentation)
                         localServer?.start()
                     }
+                    // Bring to front on launch
+                    NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
-        .windowResizability(.contentSize)
         .defaultSize(width: 1200, height: 700)
         .commands {
+            // Remove the default "New Window" command
             CommandGroup(replacing: .newItem) {
                 Button("New Presentation") {
                     presentation.loadSamplePresentation()
