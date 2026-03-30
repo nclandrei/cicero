@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import MarkdownUI
+import Splash
 import Shared
 
 final class ScreenshotService {
@@ -55,6 +56,7 @@ private struct ScreenshotSlideView: View {
             ScrollView {
                 Markdown(content)
                     .markdownTheme(markdownTheme)
+                    .markdownCodeSyntaxHighlighter(.splash(theme: .ciceroDark))
                     .padding(60)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

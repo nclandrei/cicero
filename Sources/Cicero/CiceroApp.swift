@@ -5,6 +5,8 @@ struct CiceroApp: App {
     @State private var presentation = Presentation()
     @State private var localServer: LocalServer?
     @State private var fileWatcher: FileWatcher?
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     init() {
         // Show dock icon and make windows interactive (required for SwiftPM executables)
@@ -23,6 +25,12 @@ struct CiceroApp: App {
                     }
                     // Bring to front on launch
                     NSApplication.shared.activate(ignoringOtherApps: true)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .startPresentation)) { _ in
+                    openWindow(id: "presenter")
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .stopPresentation)) { _ in
+                    dismissWindow(id: "presenter")
                 }
         }
         .defaultSize(width: 1200, height: 700)

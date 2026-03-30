@@ -1,5 +1,6 @@
 import SwiftUI
 import MarkdownUI
+import Splash
 import Shared
 
 struct SlideView: View {
@@ -16,6 +17,9 @@ struct SlideView: View {
                     ScrollView {
                         Markdown(slide.content)
                             .markdownTheme(slideMarkdownTheme)
+                            .markdownCodeSyntaxHighlighter(
+                                .splash(theme: splashTheme)
+                            )
                             .padding(60)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -31,6 +35,10 @@ struct SlideView: View {
             .shadow(color: .black.opacity(0.2), radius: 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var splashTheme: Splash.Theme {
+        theme.background == SlideTheme.dark.background ? .ciceroDark : .ciceroLight
     }
 
     // Maintain 16:9 aspect ratio

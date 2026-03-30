@@ -5,6 +5,8 @@ struct ToolbarView: ToolbarContent {
     @Environment(\.openWindow) private var openWindow
     @Binding var selectedTheme: AppTheme
     @Binding var showOverview: Bool
+    @State private var isPublishing = false
+    @State private var publishResult: String?
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -39,12 +41,53 @@ struct ToolbarView: ToolbarContent {
             .pickerStyle(.segmented)
             .frame(width: 160)
 
+            Button(action: publishGist) {
+                if isPublishing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.up.doc")
+                }
+            }
+            .disabled(isPublishing)
+            .help(publishResult ?? "Publish to GitHub Gist")
+
             Button(action: {
                 openWindow(id: "presenter")
             }) {
                 Image(systemName: "play.fill")
             }
             .help("Start presentation")
+        }
+    }
+
+    private func publishGist() {
+        isPublishing = true
+        publishResult = nil
+        let markdown = presentation.markdown
+        let title = presentation.metadata.title ?? "Presentation"
+        let existingGistId = presentation.metadata.gistId
+
+        Task {
+            do {
+                let result = try await GistService.shared.publish(
+                    filename: "\(title).md",
+                    content: markdown,
+                    description: title,
+                    isPublic: false,
+                    existingGistId: existingGistId
+                )
+                await MainActor.run {
+                    presentation.metadata.gistId = result.gistId
+                    publishResult = "Published: \(result.url)"
+                    isPublishing = false
+                }
+            } catch {
+                await MainActor.run {
+                    publishResult = error.localizedDescription
+                    isPublishing = false
+                }
+            }
         }
     }
 }
