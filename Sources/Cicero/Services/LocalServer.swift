@@ -209,6 +209,51 @@ final class LocalServer {
             self.onMain { self.presentation.loadMarkdown(body.markdown) }
             return self.jsonResponse(SuccessResponse(success: true, message: "Presentation created"))
         }
+
+        server.POST["/publish"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            let body: PublishGistRequest? = self.decodeBody(request)
+            let isPublic = body?.isPublic ?? false
+
+            let markdown = self.onMain { self.presentation.markdown }
+            let title = self.onMain { self.presentation.metadata.title ?? "Presentation" }
+            let existingGistId = self.onMain { self.presentation.metadata.gistId }
+            let filename = "\(title).md"
+
+            // Run async gist publish synchronously for the HTTP handler
+            var result: (gistId: String, url: String)?
+            var error: Error?
+            let semaphore = DispatchSemaphore(value: 0)
+            Task {
+                do {
+                    result = try await GistService.shared.publish(
+                        filename: filename,
+                        content: markdown,
+                        description: title,
+                        isPublic: isPublic,
+                        existingGistId: existingGistId
+                    )
+                } catch let e {
+                    error = e
+                }
+                semaphore.signal()
+            }
+            semaphore.wait()
+
+            if let error {
+                return self.jsonError(error.localizedDescription)
+            }
+            guard let result else {
+                return self.jsonError("Unknown publish error")
+            }
+
+            // Store gist ID in metadata
+            self.onMain {
+                self.presentation.metadata.gistId = result.gistId
+            }
+
+            return self.jsonResponse(PublishGistResponse(gistId: result.gistId, url: result.url))
+        }
     }
 
     // MARK: - Helpers
