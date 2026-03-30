@@ -1,0 +1,317 @@
+import Foundation
+import MCP
+import Shared
+
+/// All Cicero MCP tool definitions
+enum CiceroTools {
+    static let all: [Tool] = [
+        Tool(
+            name: "list_slides",
+            description: "List all slides with their titles and content",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([:]),
+            ])
+        ),
+        Tool(
+            name: "get_slide",
+            description: "Get the markdown content of a specific slide",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                ]),
+                "required": .array([.string("index")]),
+            ])
+        ),
+        Tool(
+            name: "set_slide",
+            description: "Update the content of a specific slide",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "content": .object(["type": "string", "description": "New markdown content for the slide"]),
+                ]),
+                "required": .array([.string("index"), .string("content")]),
+            ])
+        ),
+        Tool(
+            name: "add_slide",
+            description: "Add a new slide to the presentation",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "content": .object(["type": "string", "description": "Markdown content for the new slide"]),
+                    "after_index": .object(["type": "integer", "description": "Insert after this slide index. Omit to append at end."]),
+                ]),
+                "required": .array([.string("content")]),
+            ])
+        ),
+        Tool(
+            name: "remove_slide",
+            description: "Remove a slide from the presentation",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index to remove (0-based)"]),
+                ]),
+                "required": .array([.string("index")]),
+            ])
+        ),
+        Tool(
+            name: "next_slide",
+            description: "Navigate to the next slide",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "prev_slide",
+            description: "Navigate to the previous slide",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "goto_slide",
+            description: "Navigate to a specific slide by index",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                ]),
+                "required": .array([.string("index")]),
+            ])
+        ),
+        Tool(
+            name: "screenshot_slide",
+            description: "Capture a rendered screenshot of a slide as PNG",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based). Omit for current slide."]),
+                ]),
+            ])
+        ),
+        Tool(
+            name: "all_thumbnails",
+            description: "Get thumbnail images of all slides as base64 PNGs",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "start_presentation",
+            description: "Enter fullscreen presentation mode",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "stop_presentation",
+            description: "Exit presentation mode",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "get_status",
+            description: "Get the current state of the presentation (current slide, mode, file path)",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "open_file",
+            description: "Open a markdown file as a presentation",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "path": .object(["type": "string", "description": "Absolute path to the .md file"]),
+                ]),
+                "required": .array([.string("path")]),
+            ])
+        ),
+        Tool(
+            name: "create_presentation",
+            description: "Create a new presentation from markdown content. Use --- to separate slides. Optionally include YAML frontmatter for title/theme/author.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "markdown": .object(["type": "string", "description": "Full markdown content including slide separators (---)"]),
+                ]),
+                "required": .array([.string("markdown")]),
+            ])
+        ),
+        Tool(
+            name: "publish_gist",
+            description: "Publish the current presentation as a GitHub Gist",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "public": .object(["type": "boolean", "description": "Whether the gist should be public (default: false)"]),
+                ]),
+            ])
+        ),
+    ]
+}
+
+/// Execute a tool call by proxying to the Cicero app's HTTP API
+enum CiceroToolHandler {
+    static func handle(
+        name: String,
+        arguments: [String: Value]?,
+        client: AppClient
+    ) async throws -> CallTool.Result {
+        switch name {
+        case "list_slides":
+            let resp: SlidesResponse = try await client.get("/slides")
+            var text = "Presentation: \(resp.count) slides (currently on slide \(resp.currentIndex + 1))\n\n"
+            for slide in resp.slides {
+                let title = slide.title ?? "(untitled)"
+                text += "[\(slide.index + 1)] \(title)\n"
+            }
+            return textResult(text)
+
+        case "get_slide":
+            let index = arguments?["index"]?.intValue ?? 0
+            let resp: SlideInfo = try await client.get("/slides/\(index)")
+            return textResult(resp.content)
+
+        case "set_slide":
+            let index = arguments?["index"]?.intValue ?? 0
+            let content = arguments?["content"]?.stringValue ?? ""
+            let _: SuccessResponse = try await client.put(
+                "/slides/\(index)",
+                body: UpdateSlideRequest(content: content)
+            )
+            return textResult("Slide \(index + 1) updated.")
+
+        case "add_slide":
+            let content = arguments?["content"]?.stringValue ?? ""
+            let afterIndex = arguments?["after_index"]?.intValue
+            let _: SuccessResponse = try await client.post(
+                "/slides",
+                body: AddSlideRequest(content: content, afterIndex: afterIndex)
+            )
+            return textResult("Slide added.")
+
+        case "remove_slide":
+            let index = arguments?["index"]?.intValue ?? 0
+            let _: SuccessResponse = try await client.delete("/slides/\(index)")
+            return textResult("Slide \(index + 1) removed.")
+
+        case "next_slide":
+            let resp: NavigateResponse = try await client.post(
+                "/navigate", body: NavigateRequest(action: "next")
+            )
+            return textResult("Now on slide \(resp.currentIndex + 1) of \(resp.totalSlides).")
+
+        case "prev_slide":
+            let resp: NavigateResponse = try await client.post(
+                "/navigate", body: NavigateRequest(action: "prev")
+            )
+            return textResult("Now on slide \(resp.currentIndex + 1) of \(resp.totalSlides).")
+
+        case "goto_slide":
+            let index = arguments?["index"]?.intValue ?? 0
+            let resp: NavigateResponse = try await client.post(
+                "/navigate", body: NavigateRequest(action: "goto", index: index)
+            )
+            return textResult("Now on slide \(resp.currentIndex + 1) of \(resp.totalSlides).")
+
+        case "screenshot_slide":
+            let path: String
+            if let index = arguments?["index"]?.intValue {
+                path = "/screenshot/\(index)"
+            } else {
+                path = "/screenshot"
+            }
+            let resp: ScreenshotResponse = try await client.get(path)
+            return .init(
+                content: [
+                    .text(text: "Screenshot of slide \(resp.slideIndex + 1)", annotations: nil, _meta: nil),
+                    .image(data: resp.base64PNG, mimeType: "image/png", annotations: nil, _meta: nil),
+                ],
+                isError: false
+            )
+
+        case "all_thumbnails":
+            let resp: ThumbnailsResponse = try await client.get("/thumbnails")
+            var content: [Tool.Content] = [
+                .text(text: "Thumbnails for \(resp.thumbnails.count) slides:", annotations: nil, _meta: nil)
+            ]
+            for thumb in resp.thumbnails {
+                content.append(.image(data: thumb.base64PNG, mimeType: "image/png", annotations: nil, _meta: nil))
+            }
+            return .init(content: content, isError: false)
+
+        case "start_presentation":
+            let _: SuccessResponse = try await client.postEmpty("/presentation/start")
+            return textResult("Presentation mode started.")
+
+        case "stop_presentation":
+            let _: SuccessResponse = try await client.postEmpty("/presentation/stop")
+            return textResult("Presentation mode stopped.")
+
+        case "get_status":
+            let resp: StatusResponse = try await client.get("/status")
+            var text = "Status:\n"
+            text += "  Slide: \(resp.currentSlide + 1) of \(resp.totalSlides)\n"
+            text += "  Presenting: \(resp.presenting)\n"
+            if let title = resp.title { text += "  Title: \(title)\n" }
+            if let path = resp.filePath { text += "  File: \(path)\n" }
+            return textResult(text)
+
+        case "open_file":
+            let path = arguments?["path"]?.stringValue ?? ""
+            let _: SuccessResponse = try await client.post(
+                "/open", body: OpenFileRequest(path: path)
+            )
+            return textResult("Opened \(path)")
+
+        case "create_presentation":
+            let markdown = arguments?["markdown"]?.stringValue ?? ""
+            let _: SuccessResponse = try await client.post(
+                "/create", body: CreatePresentationRequest(markdown: markdown)
+            )
+            return textResult("Presentation created from provided markdown.")
+
+        case "publish_gist":
+            let isPublic = arguments?["public"]?.boolValue ?? false
+            let resp: PublishGistResponse = try await client.post(
+                "/publish", body: PublishGistRequest(isPublic: isPublic)
+            )
+            return textResult("Published gist: \(resp.url)")
+
+        default:
+            return .init(
+                content: [.text(text: "Unknown tool: \(name)", annotations: nil, _meta: nil)],
+                isError: true
+            )
+        }
+    }
+
+    private static func textResult(_ text: String) -> CallTool.Result {
+        .init(
+            content: [.text(text: text, annotations: nil, _meta: nil)],
+            isError: false
+        )
+    }
+}
+
+// MARK: - Value helpers
+
+extension Value {
+    var intValue: Int? {
+        switch self {
+        case .int(let v): return v
+        case .double(let v): return Int(v)
+        case .string(let s): return Int(s)
+        default: return nil
+        }
+    }
+
+    var stringValue: String? {
+        switch self {
+        case .string(let s): return s
+        default: return nil
+        }
+    }
+
+    var boolValue: Bool? {
+        switch self {
+        case .bool(let b): return b
+        default: return nil
+        }
+    }
+}
