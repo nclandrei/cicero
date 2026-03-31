@@ -142,6 +142,33 @@ enum CiceroTools {
                 ]),
             ])
         ),
+        Tool(
+            name: "list_themes",
+            description: "List all available built-in themes with their color definitions",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "get_theme",
+            description: "Get the current presentation theme name and color definition",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "set_theme",
+            description: "Set the presentation theme. Use a built-in name (dark, light, ocean, forest, sunset, minimal, solarized-dark, solarized-light, nord, dracula) or 'custom' with hex colors.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "name": .object(["type": "string", "description": "Theme name: a built-in theme name, 'auto', or 'custom'"]),
+                    "background": .object(["type": "string", "description": "Hex background color (required for custom theme, e.g. '#1a1a2e')"]),
+                    "text": .object(["type": "string", "description": "Hex text color"]),
+                    "heading": .object(["type": "string", "description": "Hex heading color"]),
+                    "accent": .object(["type": "string", "description": "Hex accent color"]),
+                    "code_background": .object(["type": "string", "description": "Hex code block background color"]),
+                    "code_text": .object(["type": "string", "description": "Hex code block text color"]),
+                ]),
+                "required": .array([.string("name")]),
+            ])
+        ),
     ]
 }
 
@@ -272,6 +299,41 @@ enum CiceroToolHandler {
                 "/publish", body: PublishGistRequest(isPublic: isPublic)
             )
             return textResult("Published gist: \(resp.url)")
+
+        case "list_themes":
+            let resp: ThemeListResponse = try await client.get("/themes")
+            var text = "Available themes (\(resp.themes.count)):\n\n"
+            for t in resp.themes {
+                text += "  \(t.name) — bg:\(t.background) text:\(t.text) heading:\(t.heading) accent:\(t.accent)\n"
+            }
+            return textResult(text)
+
+        case "get_theme":
+            let resp: ThemeResponse = try await client.get("/theme")
+            var text = "Current theme: \(resp.current ?? "auto")\n"
+            if let def = resp.definition {
+                text += "  background: \(def.background)\n"
+                text += "  text: \(def.text)\n"
+                text += "  heading: \(def.heading)\n"
+                text += "  accent: \(def.accent)\n"
+                text += "  codeBackground: \(def.codeBackground)\n"
+                text += "  codeText: \(def.codeText)\n"
+            }
+            return textResult(text)
+
+        case "set_theme":
+            let name = arguments?["name"]?.stringValue ?? "auto"
+            let req = SetThemeRequest(
+                name: name,
+                background: arguments?["background"]?.stringValue,
+                text: arguments?["text"]?.stringValue,
+                heading: arguments?["heading"]?.stringValue,
+                accent: arguments?["accent"]?.stringValue,
+                codeBackground: arguments?["code_background"]?.stringValue,
+                codeText: arguments?["code_text"]?.stringValue
+            )
+            let resp: ThemeResponse = try await client.put("/theme", body: req)
+            return textResult("Theme set to: \(resp.current ?? "auto")")
 
         default:
             return .init(

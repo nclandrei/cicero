@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 enum AppTheme: String, CaseIterable, Codable {
     case auto, dark, light
@@ -19,24 +20,42 @@ struct SlideTheme {
     let accent: Color
     let codeBackground: Color
     let codeText: Color
+    let definition: ThemeDefinition?
 
-    static let dark = SlideTheme(
-        background: Color(hex: 0x1a1a2e),
-        text: .white,
-        heading: .white,
-        accent: Color(hex: 0x6c63ff),
-        codeBackground: Color(hex: 0x16213e),
-        codeText: Color(hex: 0xe2e8f0)
-    )
+    init(
+        background: Color,
+        text: Color,
+        heading: Color,
+        accent: Color,
+        codeBackground: Color,
+        codeText: Color,
+        definition: ThemeDefinition? = nil
+    ) {
+        self.background = background
+        self.text = text
+        self.heading = heading
+        self.accent = accent
+        self.codeBackground = codeBackground
+        self.codeText = codeText
+        self.definition = definition
+    }
 
-    static let light = SlideTheme(
-        background: .white,
-        text: Color(hex: 0x1a1a2e),
-        heading: Color(hex: 0x1a1a2e),
-        accent: Color(hex: 0x6c63ff),
-        codeBackground: Color(hex: 0xf1f5f9),
-        codeText: Color(hex: 0x334155)
-    )
+    init(definition def: ThemeDefinition) {
+        self.definition = def
+        self.background = Color(hexString: def.background) ?? .black
+        self.text = Color(hexString: def.text) ?? .white
+        self.heading = Color(hexString: def.heading) ?? .white
+        self.accent = Color(hexString: def.accent) ?? .blue
+        self.codeBackground = Color(hexString: def.codeBackground) ?? .black
+        self.codeText = Color(hexString: def.codeText) ?? .white
+    }
+
+    var isDark: Bool {
+        definition?.isDark ?? true
+    }
+
+    static let dark = SlideTheme(definition: ThemeRegistry.dark)
+    static let light = SlideTheme(definition: ThemeRegistry.light)
 
     static func forColorScheme(_ scheme: ColorScheme) -> SlideTheme {
         scheme == .dark ? .dark : .light
@@ -52,5 +71,10 @@ extension Color {
             blue: Double(hex & 0xff) / 255,
             opacity: alpha
         )
+    }
+
+    init?(hexString: String) {
+        guard let rgb = ThemeDefinition.parseHex(hexString) else { return nil }
+        self.init(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b, opacity: 1)
     }
 }

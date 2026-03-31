@@ -38,5 +38,10 @@ let package = Package(
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .testTarget(
+            name: "CiceroTests",
+            dependencies: ["Shared"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )

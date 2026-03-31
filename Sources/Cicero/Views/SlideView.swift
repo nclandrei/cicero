@@ -38,7 +38,7 @@ struct SlideView: View {
     }
 
     private var splashTheme: Splash.Theme {
-        theme.background == SlideTheme.dark.background ? .ciceroDark : .ciceroLight
+        theme.isDark ? .ciceroDark : .ciceroLight
     }
 
     // Maintain 16:9 aspect ratio

@@ -10,7 +10,7 @@ struct PresenterView: View {
             Color.black.ignoresSafeArea()
 
             if let slide = presentation.currentSlide {
-                SlideView(slide: slide, theme: .dark)
+                SlideView(slide: slide, theme: presenterTheme)
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
@@ -68,5 +68,12 @@ struct PresenterView: View {
             dismissWindow(id: "presenter")
             return .handled
         }
+    }
+
+    private var presenterTheme: SlideTheme {
+        if let resolved = presentation.resolvedTheme {
+            return SlideTheme(definition: resolved)
+        }
+        return .dark
     }
 }

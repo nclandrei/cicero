@@ -37,7 +37,8 @@ final class LocalServer {
                     totalSlides: self.presentation.slides.count,
                     presenting: self.presentation.isPresenting,
                     filePath: self.presentation.filePath?.path,
-                    title: self.presentation.metadata.title
+                    title: self.presentation.metadata.title,
+                    theme: self.presentation.metadata.theme
                 )
             }
             return self.jsonResponse(resp)
@@ -208,6 +209,50 @@ final class LocalServer {
             }
             self.onMain { self.presentation.loadMarkdown(body.markdown) }
             return self.jsonResponse(SuccessResponse(success: true, message: "Presentation created"))
+        }
+
+        server.GET["/themes"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            return self.jsonResponse(ThemeListResponse(themes: ThemeRegistry.builtIn))
+        }
+
+        server.GET["/theme"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                ThemeResponse(
+                    current: self.presentation.metadata.theme,
+                    definition: self.presentation.resolvedTheme
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.PUT["/theme"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SetThemeRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body")
+            }
+            self.onMain {
+                if body.name == "custom", let bg = body.background {
+                    self.presentation.setCustomTheme(
+                        background: bg,
+                        text: body.text,
+                        heading: body.heading,
+                        accent: body.accent,
+                        codeBackground: body.codeBackground,
+                        codeText: body.codeText
+                    )
+                } else {
+                    self.presentation.setTheme(body.name)
+                }
+            }
+            let resp = self.onMain {
+                ThemeResponse(
+                    current: self.presentation.metadata.theme,
+                    definition: self.presentation.resolvedTheme
+                )
+            }
+            return self.jsonResponse(resp)
         }
 
         server.POST["/publish"] = { [weak self] request in

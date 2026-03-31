@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 struct ToolbarView: ToolbarContent {
     @Environment(Presentation.self) private var presentation
@@ -40,6 +41,26 @@ struct ToolbarView: ToolbarContent {
             }
             .pickerStyle(.segmented)
             .frame(width: 160)
+
+            Menu {
+                ForEach(ThemeRegistry.builtIn, id: \.name) { theme in
+                    Button(action: { presentation.setTheme(theme.name) }) {
+                        HStack {
+                            Text(theme.name.capitalized)
+                            if presentation.metadata.theme == theme.name {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+                Divider()
+                Button("Auto (System)") {
+                    presentation.setTheme("auto")
+                }
+            } label: {
+                Image(systemName: "paintpalette")
+            }
+            .help("Slide theme")
 
             Button(action: publishGist) {
                 if isPublishing {

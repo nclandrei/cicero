@@ -12,22 +12,30 @@ final class ScreenshotService {
     }
 
     /// Must be called on the main thread (via DispatchQueue.main.sync from LocalServer)
-    func renderSlideSync(_ slide: Slide, size: CGSize = CGSize(width: 1920, height: 1080)) -> Data? {
+    func renderSlideSync(_ slide: Slide, theme: SlideTheme? = nil, size: CGSize = CGSize(width: 1920, height: 1080)) -> Data? {
         MainActor.assumeIsolated {
-            renderViaHostingView(slide: slide, size: size)
+            renderViaHostingView(slide: slide, theme: theme ?? effectiveTheme, size: size)
         }
     }
 
-    func renderThumbnailSync(_ slide: Slide, size: CGSize = CGSize(width: 384, height: 216)) -> Data? {
+    func renderThumbnailSync(_ slide: Slide, theme: SlideTheme? = nil, size: CGSize = CGSize(width: 384, height: 216)) -> Data? {
         MainActor.assumeIsolated {
-            renderViaHostingView(slide: slide, size: size)
+            renderViaHostingView(slide: slide, theme: theme ?? effectiveTheme, size: size)
         }
+    }
+
+    @MainActor
+    private var effectiveTheme: SlideTheme {
+        if let def = presentation.resolvedTheme {
+            return SlideTheme(definition: def)
+        }
+        return .dark
     }
 
     /// Render using NSHostingView which fully supports MarkdownUI
     @MainActor
-    private func renderViaHostingView(slide: Slide, size: CGSize) -> Data? {
-        let view = ScreenshotSlideView(content: slide.content)
+    private func renderViaHostingView(slide: Slide, theme: SlideTheme, size: CGSize) -> Data? {
+        let view = ScreenshotSlideView(content: slide.content, theme: theme)
             .frame(width: size.width, height: size.height)
 
         let hostingView = NSHostingView(rootView: view)
@@ -47,8 +55,7 @@ final class ScreenshotService {
 /// Uses MarkdownUI for proper rendering in screenshots
 private struct ScreenshotSlideView: View {
     let content: String
-
-    private let theme = SlideTheme.dark
+    let theme: SlideTheme
 
     var body: some View {
         ZStack {
@@ -56,11 +63,15 @@ private struct ScreenshotSlideView: View {
             ScrollView {
                 Markdown(content)
                     .markdownTheme(markdownTheme)
-                    .markdownCodeSyntaxHighlighter(.splash(theme: .ciceroDark))
+                    .markdownCodeSyntaxHighlighter(.splash(theme: splashTheme))
                     .padding(60)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var splashTheme: Splash.Theme {
+        theme.isDark ? .ciceroDark : .ciceroLight
     }
 
     private var markdownTheme: MarkdownUI.Theme {
