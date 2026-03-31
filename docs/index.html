@@ -151,19 +151,22 @@ html, body {
   font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
 }
 #slide pre {
-  background: rgba(0, 0, 0, 0.35);
+  background: #0d1117;
   border-radius: 6px;
   padding: 1em 1.2em;
   overflow-x: auto;
   margin: 0.8em 0;
   font-size: 0.85rem;
   line-height: 1.55;
+  color: #e6edf3;
 }
 #slide pre code {
   background: none;
   padding: 0;
   font-size: inherit;
+  color: inherit;
 }
+#slide pre code .hljs { background: transparent; }
 #slide img { max-width: 100%; border-radius: 6px; }
 #slide a { color: var(--accent); text-decoration: none; }
 #slide a:hover { text-decoration: underline; }
@@ -341,30 +344,25 @@ html, body {
   }
 
   // --- Rendering ---
-  var renderer = new marked.Renderer();
-  renderer.code = function (token) {
-    var lang = token.lang || '';
-    var code = token.text || '';
-    var highlighted;
-    if (lang && hljs.getLanguage(lang)) {
-      highlighted = hljs.highlight(code, { language: lang }).value;
-    } else {
-      highlighted = hljs.highlightAuto(code).value;
-    }
-    return '<pre><code class="hljs language-' + (lang || 'plaintext') + '">' + highlighted + '</code></pre>';
-  };
-
   marked.setOptions({
-    renderer: renderer,
     breaks: false,
     gfm: true
   });
+
+  // Post-process: highlight code blocks after marked renders them
+  function highlightCode(el) {
+    var blocks = el.querySelectorAll('pre code');
+    for (var i = 0; i < blocks.length; i++) {
+      hljs.highlightElement(blocks[i]);
+    }
+  }
 
   function renderSlide(index, skipTransition) {
     if (index < 0 || index >= slides.length) return;
     if (skipTransition) {
       currentIndex = index;
       $slide.innerHTML = marked.parse(slides[index]);
+      highlightCode($slide);
       $counter.textContent = (index + 1) + ' / ' + slides.length;
       $progress.style.width = ((index + 1) / slides.length * 100) + '%';
       return;
@@ -373,6 +371,7 @@ html, body {
     setTimeout(function () {
       currentIndex = index;
       $slide.innerHTML = marked.parse(slides[index]);
+      highlightCode($slide);
       $counter.textContent = (index + 1) + ' / ' + slides.length;
       $progress.style.width = ((index + 1) / slides.length * 100) + '%';
       $slide.classList.remove('fade-out');

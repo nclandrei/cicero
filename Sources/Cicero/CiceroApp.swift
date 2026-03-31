@@ -9,7 +9,7 @@ struct CiceroApp: App {
     @Environment(\.dismissWindow) private var dismissWindow
 
     // Auth state
-    @State private var auth = GitHubAuth(clientId: "REPLACE_WITH_OAUTH_APP_CLIENT_ID")
+    @State private var auth = GitHubAuth(clientId: "Ov23liDEDmYLwzNebYiR")
     @State private var isAuthenticated = false
     @State private var githubUsername: String?
     @State private var isAuthenticating = false
