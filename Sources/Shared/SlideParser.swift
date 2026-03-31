@@ -1,16 +1,41 @@
 import Foundation
 
+public enum SlideLayout: String, Codable, Sendable {
+    case `default` = "default"
+    case title = "title"
+    case twoColumn = "two-column"
+    case imageLeft = "image-left"
+    case imageRight = "image-right"
+}
+
 public struct Slide: Codable, Identifiable, Sendable {
     public let id: Int
+    /// Raw content including frontmatter lines (used for serialization/editor)
     public var content: String
+    /// Content with frontmatter lines stripped (used for rendering)
+    public var body: String
+    public var layout: SlideLayout
+    public var imageURL: String?
 
     public init(id: Int, content: String) {
+        let parsed = SlideParser.parseSlideMetadata(content)
         self.id = id
         self.content = content
+        self.body = parsed.body
+        self.layout = parsed.layout
+        self.imageURL = parsed.imageURL
+    }
+
+    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?) {
+        self.id = id
+        self.content = content
+        self.body = body
+        self.layout = layout
+        self.imageURL = imageURL
     }
 
     public var title: String? {
-        for line in content.split(separator: "\n", omittingEmptySubsequences: false) {
+        for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("# ") {
                 return String(trimmed.dropFirst(2))
@@ -37,6 +62,53 @@ public struct PresentationMetadata: Codable, Sendable {
 }
 
 public enum SlideParser {
+
+    public struct SlideMetadata {
+        public let body: String
+        public let layout: SlideLayout
+        public let imageURL: String?
+    }
+
+    /// Parse per-slide frontmatter (layout:, image:) from the top of slide content.
+    /// Lines like `layout: title` and `image: url` at the very top are consumed.
+    public static func parseSlideMetadata(_ content: String) -> SlideMetadata {
+        var layout: SlideLayout = .default
+        var imageURL: String? = nil
+        var bodyLines: [String] = []
+        var inFrontmatter = true
+
+        for line in content.components(separatedBy: "\n") {
+            if inFrontmatter {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    // Skip leading blank lines in frontmatter zone
+                    continue
+                }
+                let pair = trimmed.split(separator: ":", maxSplits: 1)
+                if pair.count == 2 {
+                    let key = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+                    let value = pair[1].trimmingCharacters(in: .whitespaces)
+                    switch key {
+                    case "layout":
+                        layout = SlideLayout(rawValue: value) ?? .default
+                        continue
+                    case "image":
+                        imageURL = value
+                        continue
+                    default:
+                        // Not a recognized frontmatter key — treat as body
+                        inFrontmatter = false
+                    }
+                } else {
+                    inFrontmatter = false
+                }
+            }
+            bodyLines.append(line)
+        }
+
+        let body = bodyLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return SlideMetadata(body: body, layout: layout, imageURL: imageURL)
+    }
 
     public static func parse(_ markdown: String) -> (metadata: PresentationMetadata, slides: [Slide]) {
         var content = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,9 +187,9 @@ public enum SlideParser {
                 inCodeBlock.toggle()
             }
             if !inCodeBlock && trimmed == "---" {
-                let body = current.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !body.isEmpty {
-                    slides.append(Slide(id: index, content: body))
+                let raw = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !raw.isEmpty {
+                    slides.append(Slide(id: index, content: raw))
                     index += 1
                 }
                 current = ""
@@ -126,9 +198,9 @@ public enum SlideParser {
             }
         }
 
-        let body = current.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !body.isEmpty {
-            slides.append(Slide(id: index, content: body))
+        let raw = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty {
+            slides.append(Slide(id: index, content: raw))
         }
         return slides
     }

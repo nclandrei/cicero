@@ -26,23 +26,23 @@ enum CiceroTools {
         ),
         Tool(
             name: "set_slide",
-            description: "Update the content of a specific slide",
+            description: "Update the content of a specific slide. Supports per-slide layout frontmatter at the top: 'layout: title|two-column|image-left|image-right' and 'image: URL'. Use '|||' to separate columns in two-column layout.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
                     "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
-                    "content": .object(["type": "string", "description": "New markdown content for the slide"]),
+                    "content": .object(["type": "string", "description": "New markdown content for the slide. Add 'layout: <type>' as the first line for layout. Use '|||' to separate columns in two-column layout."]),
                 ]),
                 "required": .array([.string("index"), .string("content")]),
             ])
         ),
         Tool(
             name: "add_slide",
-            description: "Add a new slide to the presentation",
+            description: "Add a new slide to the presentation. Supports per-slide layout frontmatter: 'layout: title|two-column|image-left|image-right' and 'image: URL' as first lines.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
-                    "content": .object(["type": "string", "description": "Markdown content for the new slide"]),
+                    "content": .object(["type": "string", "description": "Markdown content for the new slide. Add 'layout: <type>' as the first line for layout."]),
                     "after_index": .object(["type": "integer", "description": "Insert after this slide index. Omit to append at end."]),
                 ]),
                 "required": .array([.string("content")]),
@@ -158,7 +158,8 @@ enum CiceroToolHandler {
             var text = "Presentation: \(resp.count) slides (currently on slide \(resp.currentIndex + 1))\n\n"
             for slide in resp.slides {
                 let title = slide.title ?? "(untitled)"
-                text += "[\(slide.index + 1)] \(title)\n"
+                let layoutBadge = slide.layout.map { " [\($0)]" } ?? ""
+                text += "[\(slide.index + 1)] \(title)\(layoutBadge)\n"
             }
             return textResult(text)
 

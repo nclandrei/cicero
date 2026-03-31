@@ -27,7 +27,7 @@ final class ScreenshotService {
     /// Render using NSHostingView which fully supports MarkdownUI
     @MainActor
     private func renderViaHostingView(slide: Slide, size: CGSize) -> Data? {
-        let view = ScreenshotSlideView(content: slide.content)
+        let view = ScreenshotSlideView(slide: slide)
             .frame(width: size.width, height: size.height)
 
         let hostingView = NSHostingView(rootView: view)
@@ -46,82 +46,36 @@ final class ScreenshotService {
 
 /// Uses MarkdownUI for proper rendering in screenshots
 private struct ScreenshotSlideView: View {
-    let content: String
+    let slide: Slide
 
     private let theme = SlideTheme.dark
 
     var body: some View {
         ZStack {
             theme.background
+            slideContent
+        }
+    }
+
+    @ViewBuilder
+    private var slideContent: some View {
+        switch slide.layout {
+        case .title:
+            TitleLayoutView(content: slide.body, theme: theme)
+        case .twoColumn:
+            TwoColumnLayoutView(content: slide.body, theme: theme)
+        case .imageLeft:
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: true, theme: theme)
+        case .imageRight:
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: false, theme: theme)
+        case .default:
             ScrollView {
-                Markdown(content)
-                    .markdownTheme(markdownTheme)
+                Markdown(slide.body)
+                    .markdownTheme(theme.markdownTheme())
                     .markdownCodeSyntaxHighlighter(.splash(theme: .ciceroDark))
                     .padding(60)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-
-    private var markdownTheme: MarkdownUI.Theme {
-        .gitHub
-            .text {
-                ForegroundColor(theme.text)
-                FontSize(22)
-            }
-            .heading1 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(44)
-                        FontWeight(.bold)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 24)
-            }
-            .heading2 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(34)
-                        FontWeight(.semibold)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 16)
-            }
-            .heading3 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(28)
-                        FontWeight(.medium)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 12)
-            }
-            .codeBlock { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontFamilyVariant(.monospaced)
-                        FontSize(16)
-                        ForegroundColor(theme.codeText)
-                    }
-                    .padding(16)
-                    .background(theme.codeBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .markdownMargin(top: 16, bottom: 16)
-            }
-            .code {
-                FontFamilyVariant(.monospaced)
-                FontSize(18)
-                ForegroundColor(theme.accent)
-            }
-            .strong {
-                FontWeight(.bold)
-            }
-            .link {
-                ForegroundColor(theme.accent)
-            }
-            .listItem { configuration in
-                configuration.label
-                    .markdownMargin(top: 4, bottom: 4)
-            }
     }
 }

@@ -14,16 +14,7 @@ struct SlideView: View {
                 theme.background
 
                 if let slide {
-                    ScrollView {
-                        Markdown(slide.content)
-                            .markdownTheme(slideMarkdownTheme)
-                            .markdownCodeSyntaxHighlighter(
-                                .splash(theme: splashTheme)
-                            )
-                            .padding(60)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(width: size.width, height: size.height)
+                    slideContent(for: slide)
                 } else {
                     Text("No Slides")
                         .font(.title2)
@@ -37,8 +28,26 @@ struct SlideView: View {
         }
     }
 
-    private var splashTheme: Splash.Theme {
-        theme.background == SlideTheme.dark.background ? .ciceroDark : .ciceroLight
+    @ViewBuilder
+    private func slideContent(for slide: Slide) -> some View {
+        switch slide.layout {
+        case .title:
+            TitleLayoutView(content: slide.body, theme: theme)
+        case .twoColumn:
+            TwoColumnLayoutView(content: slide.body, theme: theme)
+        case .imageLeft:
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: true, theme: theme)
+        case .imageRight:
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: false, theme: theme)
+        case .default:
+            ScrollView {
+                Markdown(slide.body)
+                    .markdownTheme(theme.markdownTheme())
+                    .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
+                    .padding(60)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     // Maintain 16:9 aspect ratio
@@ -56,67 +65,5 @@ struct SlideView: View {
             let w = available.width
             return CGSize(width: w, height: w / ratio)
         }
-    }
-
-    private var slideMarkdownTheme: MarkdownUI.Theme {
-        .gitHub
-            .text {
-                ForegroundColor(theme.text)
-                FontSize(22)
-            }
-            .heading1 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(44)
-                        FontWeight(.bold)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 24)
-            }
-            .heading2 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(34)
-                        FontWeight(.semibold)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 16)
-            }
-            .heading3 { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(28)
-                        FontWeight(.medium)
-                        ForegroundColor(theme.heading)
-                    }
-                    .markdownMargin(top: 0, bottom: 12)
-            }
-            .codeBlock { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontFamilyVariant(.monospaced)
-                        FontSize(16)
-                        ForegroundColor(theme.codeText)
-                    }
-                    .padding(16)
-                    .background(theme.codeBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .markdownMargin(top: 16, bottom: 16)
-            }
-            .code {
-                FontFamilyVariant(.monospaced)
-                FontSize(18)
-                ForegroundColor(theme.accent)
-            }
-            .strong {
-                FontWeight(.bold)
-            }
-            .link {
-                ForegroundColor(theme.accent)
-            }
-            .listItem { configuration in
-                configuration.label
-                    .markdownMargin(top: 4, bottom: 4)
-            }
     }
 }

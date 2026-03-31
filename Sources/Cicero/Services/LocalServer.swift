@@ -49,7 +49,13 @@ final class LocalServer {
                 SlidesResponse(
                     count: self.presentation.slides.count,
                     slides: self.presentation.slides.map {
-                        SlideInfo(index: $0.id, title: $0.title, content: $0.content)
+                        SlideInfo(
+                            index: $0.id,
+                            title: $0.title,
+                            content: $0.content,
+                            layout: $0.layout == .default ? nil : $0.layout.rawValue,
+                            imageURL: $0.imageURL
+                        )
                     },
                     currentIndex: self.presentation.currentIndex
                 )
@@ -67,7 +73,13 @@ final class LocalServer {
                     return self.jsonError("Slide index out of range", status: 404)
                 }
                 let slide = self.presentation.slides[index]
-                return self.jsonResponse(SlideInfo(index: index, title: slide.title, content: slide.content))
+                return self.jsonResponse(SlideInfo(
+                    index: index,
+                    title: slide.title,
+                    content: slide.content,
+                    layout: slide.layout == .default ? nil : slide.layout.rawValue,
+                    imageURL: slide.imageURL
+                ))
             }
         }
 
