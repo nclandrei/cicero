@@ -12,7 +12,7 @@ struct PresenterView: View {
             if let slide = presentation.currentSlide {
                 SlideView(
                     slide: slide,
-                    theme: .dark,
+                    theme: presenterTheme,
                     baseDirectory: presentation.filePath?.deletingLastPathComponent()
                 )
                     .transition(.asymmetric(
@@ -72,5 +72,12 @@ struct PresenterView: View {
             dismissWindow(id: "presenter")
             return .handled
         }
+    }
+
+    private var presenterTheme: SlideTheme {
+        if let resolved = presentation.resolvedTheme {
+            return SlideTheme(definition: resolved)
+        }
+        return .dark
     }
 }

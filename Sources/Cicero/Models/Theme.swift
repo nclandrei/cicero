@@ -1,6 +1,7 @@
 import SwiftUI
 import MarkdownUI
 import Splash
+import Shared
 
 enum AppTheme: String, CaseIterable, Codable {
     case auto, dark, light
@@ -21,31 +22,49 @@ struct SlideTheme {
     let accent: SwiftUI.Color
     let codeBackground: SwiftUI.Color
     let codeText: SwiftUI.Color
+    let definition: ThemeDefinition?
 
-    static let dark = SlideTheme(
-        background: SwiftUI.Color(hex: 0x1a1a2e),
-        text: .white,
-        heading: .white,
-        accent: SwiftUI.Color(hex: 0x6c63ff),
-        codeBackground: SwiftUI.Color(hex: 0x16213e),
-        codeText: SwiftUI.Color(hex: 0xe2e8f0)
-    )
+    init(
+        background: SwiftUI.Color,
+        text: SwiftUI.Color,
+        heading: SwiftUI.Color,
+        accent: SwiftUI.Color,
+        codeBackground: SwiftUI.Color,
+        codeText: SwiftUI.Color,
+        definition: ThemeDefinition? = nil
+    ) {
+        self.background = background
+        self.text = text
+        self.heading = heading
+        self.accent = accent
+        self.codeBackground = codeBackground
+        self.codeText = codeText
+        self.definition = definition
+    }
 
-    static let light = SlideTheme(
-        background: .white,
-        text: SwiftUI.Color(hex: 0x1a1a2e),
-        heading: SwiftUI.Color(hex: 0x1a1a2e),
-        accent: SwiftUI.Color(hex: 0x6c63ff),
-        codeBackground: SwiftUI.Color(hex: 0xf1f5f9),
-        codeText: SwiftUI.Color(hex: 0x334155)
-    )
+    init(definition def: ThemeDefinition) {
+        self.definition = def
+        self.background = SwiftUI.Color(hexString: def.background) ?? .black
+        self.text = SwiftUI.Color(hexString: def.text) ?? .white
+        self.heading = SwiftUI.Color(hexString: def.heading) ?? .white
+        self.accent = SwiftUI.Color(hexString: def.accent) ?? .blue
+        self.codeBackground = SwiftUI.Color(hexString: def.codeBackground) ?? .black
+        self.codeText = SwiftUI.Color(hexString: def.codeText) ?? .white
+    }
+
+    var isDark: Bool {
+        definition?.isDark ?? true
+    }
+
+    static let dark = SlideTheme(definition: ThemeRegistry.dark)
+    static let light = SlideTheme(definition: ThemeRegistry.light)
 
     static func forColorScheme(_ scheme: ColorScheme) -> SlideTheme {
         scheme == .dark ? .dark : .light
     }
 
     var splashTheme: Splash.Theme {
-        background == SlideTheme.dark.background ? .ciceroDark : .ciceroLight
+        isDark ? .ciceroDark : .ciceroLight
     }
 
     /// Standard markdown theme for regular slides
@@ -186,5 +205,10 @@ extension SwiftUI.Color {
             blue: Double(hex & 0xff) / 255,
             opacity: alpha
         )
+    }
+
+    init?(hexString: String) {
+        guard let rgb = ThemeDefinition.parseHex(hexString) else { return nil }
+        self.init(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b, opacity: 1)
     }
 }

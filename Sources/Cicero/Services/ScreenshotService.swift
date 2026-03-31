@@ -12,23 +12,31 @@ final class ScreenshotService {
     }
 
     /// Must be called on the main thread (via DispatchQueue.main.sync from LocalServer)
-    func renderSlideSync(_ slide: Slide, size: CGSize = CGSize(width: 1920, height: 1080)) -> Data? {
+    func renderSlideSync(_ slide: Slide, theme: SlideTheme? = nil, size: CGSize = CGSize(width: 1920, height: 1080)) -> Data? {
         MainActor.assumeIsolated {
-            renderViaHostingView(slide: slide, size: size)
+            renderViaHostingView(slide: slide, theme: theme ?? effectiveTheme, size: size)
         }
     }
 
-    func renderThumbnailSync(_ slide: Slide, size: CGSize = CGSize(width: 384, height: 216)) -> Data? {
+    func renderThumbnailSync(_ slide: Slide, theme: SlideTheme? = nil, size: CGSize = CGSize(width: 384, height: 216)) -> Data? {
         MainActor.assumeIsolated {
-            renderViaHostingView(slide: slide, size: size)
+            renderViaHostingView(slide: slide, theme: theme ?? effectiveTheme, size: size)
         }
+    }
+
+    @MainActor
+    private var effectiveTheme: SlideTheme {
+        if let def = presentation.resolvedTheme {
+            return SlideTheme(definition: def)
+        }
+        return .dark
     }
 
     /// Render using NSHostingView which fully supports MarkdownUI
     @MainActor
-    private func renderViaHostingView(slide: Slide, size: CGSize) -> Data? {
+    private func renderViaHostingView(slide: Slide, theme: SlideTheme, size: CGSize) -> Data? {
         let baseDir = presentation.filePath?.deletingLastPathComponent()
-        let view = ScreenshotSlideView(slide: slide, baseDirectory: baseDir)
+        let view = ScreenshotSlideView(slide: slide, theme: theme, baseDirectory: baseDir)
             .frame(width: size.width, height: size.height)
 
         let hostingView = NSHostingView(rootView: view)
@@ -48,9 +56,8 @@ final class ScreenshotService {
 /// Uses MarkdownUI for proper rendering in screenshots
 private struct ScreenshotSlideView: View {
     let slide: Slide
+    let theme: SlideTheme
     let baseDirectory: URL?
-
-    private let theme = SlideTheme.dark
 
     var body: some View {
         ZStack {
@@ -74,7 +81,7 @@ private struct ScreenshotSlideView: View {
             ScrollView {
                 Markdown(slide.body)
                     .markdownTheme(theme.markdownTheme())
-                    .markdownCodeSyntaxHighlighter(.splash(theme: .ciceroDark))
+                    .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                     .markdownImageProvider(.cicero(
                         baseDirectory: baseDirectory,
                         isInteractive: false

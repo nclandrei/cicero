@@ -24,6 +24,41 @@ final class Presentation {
         return slides[currentIndex]
     }
 
+    var resolvedTheme: ThemeDefinition? {
+        metadata.resolveTheme()
+    }
+
+    func setTheme(_ name: String) {
+        metadata.theme = name
+        if name != "custom" {
+            metadata.themeBackground = nil
+            metadata.themeText = nil
+            metadata.themeHeading = nil
+            metadata.themeAccent = nil
+            metadata.themeCodeBackground = nil
+            metadata.themeCodeText = nil
+        }
+        rebuildMarkdown()
+    }
+
+    func setCustomTheme(
+        background: String,
+        text: String? = nil,
+        heading: String? = nil,
+        accent: String? = nil,
+        codeBackground: String? = nil,
+        codeText: String? = nil
+    ) {
+        metadata.theme = "custom"
+        metadata.themeBackground = background
+        metadata.themeText = text
+        metadata.themeHeading = heading
+        metadata.themeAccent = accent
+        metadata.themeCodeBackground = codeBackground
+        metadata.themeCodeText = codeText
+        rebuildMarkdown()
+    }
+
     init() {
         loadSamplePresentation()
     }

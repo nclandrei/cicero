@@ -36,13 +36,15 @@ public struct StatusResponse: Codable, Sendable {
     public let presenting: Bool
     public let filePath: String?
     public let title: String?
+    public let theme: String?
 
-    public init(currentSlide: Int, totalSlides: Int, presenting: Bool, filePath: String?, title: String?) {
+    public init(currentSlide: Int, totalSlides: Int, presenting: Bool, filePath: String?, title: String?, theme: String? = nil) {
         self.currentSlide = currentSlide
         self.totalSlides = totalSlides
         self.presenting = presenting
         self.filePath = filePath
         self.title = title
+        self.theme = theme
     }
 }
 
@@ -193,5 +195,53 @@ public struct PublishGistRequest: Codable, Sendable {
 
     public init(isPublic: Bool = false) {
         self.isPublic = isPublic
+    }
+}
+
+// MARK: - Theme Models
+
+public struct ThemeListResponse: Codable, Sendable {
+    public let themes: [ThemeDefinition]
+
+    public init(themes: [ThemeDefinition]) {
+        self.themes = themes
+    }
+}
+
+public struct ThemeResponse: Codable, Sendable {
+    public let current: String?
+    public let definition: ThemeDefinition?
+
+    public init(current: String?, definition: ThemeDefinition?) {
+        self.current = current
+        self.definition = definition
+    }
+}
+
+public struct SetThemeRequest: Codable, Sendable {
+    public let name: String
+    public let background: String?
+    public let text: String?
+    public let heading: String?
+    public let accent: String?
+    public let codeBackground: String?
+    public let codeText: String?
+
+    public init(
+        name: String,
+        background: String? = nil,
+        text: String? = nil,
+        heading: String? = nil,
+        accent: String? = nil,
+        codeBackground: String? = nil,
+        codeText: String? = nil
+    ) {
+        self.name = name
+        self.background = background
+        self.text = text
+        self.heading = heading
+        self.accent = accent
+        self.codeBackground = codeBackground
+        self.codeText = codeText
     }
 }

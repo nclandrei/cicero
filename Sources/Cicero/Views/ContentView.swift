@@ -48,6 +48,9 @@ struct ContentView: View {
     }
 
     private var effectiveTheme: SlideTheme {
+        if let resolved = presentation.resolvedTheme {
+            return SlideTheme(definition: resolved)
+        }
         switch selectedTheme {
         case .auto: return SlideTheme.forColorScheme(colorScheme)
         case .dark: return .dark

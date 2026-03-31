@@ -52,12 +52,53 @@ public struct PresentationMetadata: Codable, Sendable {
     public var theme: String?
     public var author: String?
     public var gistId: String?
+    public var themeBackground: String?
+    public var themeText: String?
+    public var themeHeading: String?
+    public var themeAccent: String?
+    public var themeCodeBackground: String?
+    public var themeCodeText: String?
 
-    public init(title: String? = nil, theme: String? = nil, author: String? = nil, gistId: String? = nil) {
+    public init(
+        title: String? = nil,
+        theme: String? = nil,
+        author: String? = nil,
+        gistId: String? = nil,
+        themeBackground: String? = nil,
+        themeText: String? = nil,
+        themeHeading: String? = nil,
+        themeAccent: String? = nil,
+        themeCodeBackground: String? = nil,
+        themeCodeText: String? = nil
+    ) {
         self.title = title
         self.theme = theme
         self.author = author
         self.gistId = gistId
+        self.themeBackground = themeBackground
+        self.themeText = themeText
+        self.themeHeading = themeHeading
+        self.themeAccent = themeAccent
+        self.themeCodeBackground = themeCodeBackground
+        self.themeCodeText = themeCodeText
+    }
+
+    /// Resolve theme from metadata: named built-in, custom inline, or nil
+    public func resolveTheme() -> ThemeDefinition? {
+        guard let themeName = theme, themeName != "auto" else { return nil }
+        if themeName == "custom" {
+            guard let bg = themeBackground else { return nil }
+            return ThemeDefinition(
+                name: "custom",
+                background: bg,
+                text: themeText ?? "#ffffff",
+                heading: themeHeading ?? themeText ?? "#ffffff",
+                accent: themeAccent ?? "#6c63ff",
+                codeBackground: themeCodeBackground ?? bg,
+                codeText: themeCodeText ?? themeText ?? "#ffffff"
+            )
+        }
+        return ThemeRegistry.find(themeName)
     }
 }
 
@@ -144,6 +185,12 @@ public enum SlideParser {
         if let t = metadata.theme { fm.append("theme: \(t)") }
         if let a = metadata.author { fm.append("author: \(a)") }
         if let g = metadata.gistId { fm.append("gist_id: \(g)") }
+        if let v = metadata.themeBackground { fm.append("theme_background: \(v)") }
+        if let v = metadata.themeText { fm.append("theme_text: \(v)") }
+        if let v = metadata.themeHeading { fm.append("theme_heading: \(v)") }
+        if let v = metadata.themeAccent { fm.append("theme_accent: \(v)") }
+        if let v = metadata.themeCodeBackground { fm.append("theme_code_background: \(v)") }
+        if let v = metadata.themeCodeText { fm.append("theme_code_text: \(v)") }
         if !fm.isEmpty {
             parts.append("---\n\(fm.joined(separator: "\n"))\n---")
         }
@@ -169,6 +216,12 @@ public enum SlideParser {
             case "theme": meta.theme = value
             case "author": meta.author = value
             case "gist_id": meta.gistId = value
+            case "theme_background": meta.themeBackground = value
+            case "theme_text": meta.themeText = value
+            case "theme_heading": meta.themeHeading = value
+            case "theme_accent": meta.themeAccent = value
+            case "theme_code_background": meta.themeCodeBackground = value
+            case "theme_code_text": meta.themeCodeText = value
             default: break
             }
         }
