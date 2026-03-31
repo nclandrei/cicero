@@ -10,7 +10,11 @@ struct PresenterView: View {
             Color.black.ignoresSafeArea()
 
             if let slide = presentation.currentSlide {
-                SlideView(slide: slide, theme: .dark)
+                SlideView(
+                    slide: slide,
+                    theme: .dark,
+                    baseDirectory: presentation.filePath?.deletingLastPathComponent()
+                )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)

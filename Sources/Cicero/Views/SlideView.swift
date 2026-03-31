@@ -6,6 +6,9 @@ import Shared
 struct SlideView: View {
     let slide: Slide?
     let theme: SlideTheme
+    var baseDirectory: URL? = nil
+    var isInteractive: Bool = false
+    var onImageResize: ((String, CGFloat) -> Void)? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -20,6 +23,11 @@ struct SlideView: View {
                             .markdownCodeSyntaxHighlighter(
                                 .splash(theme: splashTheme)
                             )
+                            .markdownImageProvider(.cicero(
+                                baseDirectory: baseDirectory,
+                                isInteractive: isInteractive,
+                                onResize: onImageResize
+                            ))
                             .padding(60)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }

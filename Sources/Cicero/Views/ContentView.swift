@@ -12,7 +12,15 @@ struct ContentView: View {
             SlideEditorView()
                 .frame(minWidth: 300, idealWidth: 450)
 
-            SlideView(slide: presentation.currentSlide, theme: effectiveTheme)
+            SlideView(
+                slide: presentation.currentSlide,
+                theme: effectiveTheme,
+                baseDirectory: presentation.filePath?.deletingLastPathComponent(),
+                isInteractive: true,
+                onImageResize: { sourcePath, newWidth in
+                    handleImageResize(sourcePath: sourcePath, newWidth: newWidth)
+                }
+            )
                 .frame(minWidth: 400, idealWidth: 700)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -44,6 +52,30 @@ struct ContentView: View {
         case .auto: return SlideTheme.forColorScheme(colorScheme)
         case .dark: return .dark
         case .light: return .light
+        }
+    }
+
+    private func handleImageResize(sourcePath: String, newWidth: CGFloat) {
+        let idx = presentation.currentIndex
+        guard idx >= 0 && idx < presentation.slides.count else { return }
+        let content = presentation.slides[idx].content
+        let width = Int(newWidth)
+
+        // Find the image reference and update/add width fragment
+        // Match pattern: (sourcePath) or (sourcePath#w=NNN)
+        let escaped = NSRegularExpression.escapedPattern(for: sourcePath)
+        let pattern = "\\]\\(\(escaped)(#w=\\d+)?\\)"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+
+        let nsContent = content as NSString
+        let range = NSRange(location: 0, length: nsContent.length)
+        let newContent = regex.stringByReplacingMatches(
+            in: content,
+            range: range,
+            withTemplate: "](\(sourcePath)#w=\(width))"
+        )
+        if newContent != content {
+            presentation.updateSlide(at: idx, content: newContent)
         }
     }
 

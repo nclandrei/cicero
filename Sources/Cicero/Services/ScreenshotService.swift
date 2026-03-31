@@ -27,7 +27,8 @@ final class ScreenshotService {
     /// Render using NSHostingView which fully supports MarkdownUI
     @MainActor
     private func renderViaHostingView(slide: Slide, size: CGSize) -> Data? {
-        let view = ScreenshotSlideView(content: slide.content)
+        let baseDir = presentation.filePath?.deletingLastPathComponent()
+        let view = ScreenshotSlideView(content: slide.content, baseDirectory: baseDir)
             .frame(width: size.width, height: size.height)
 
         let hostingView = NSHostingView(rootView: view)
@@ -47,6 +48,7 @@ final class ScreenshotService {
 /// Uses MarkdownUI for proper rendering in screenshots
 private struct ScreenshotSlideView: View {
     let content: String
+    let baseDirectory: URL?
 
     private let theme = SlideTheme.dark
 
@@ -57,6 +59,10 @@ private struct ScreenshotSlideView: View {
                 Markdown(content)
                     .markdownTheme(markdownTheme)
                     .markdownCodeSyntaxHighlighter(.splash(theme: .ciceroDark))
+                    .markdownImageProvider(.cicero(
+                        baseDirectory: baseDirectory,
+                        isInteractive: false
+                    ))
                     .padding(60)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
