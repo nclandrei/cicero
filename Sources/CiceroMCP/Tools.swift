@@ -133,13 +133,35 @@ enum CiceroTools {
             ])
         ),
         Tool(
+            name: "auth_status",
+            description: "Check GitHub authentication status",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
             name: "publish_gist",
-            description: "Publish the current presentation as a GitHub Gist",
+            description: "Publish the current presentation as a GitHub Gist. Requires GitHub authentication via Settings.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
                     "public": .object(["type": "boolean", "description": "Whether the gist should be public (default: false)"]),
                 ]),
+            ])
+        ),
+        Tool(
+            name: "export_pdf",
+            description: "Export the current presentation as a multi-page PDF",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "add_image",
+            description: "Add an image to the presentation assets. Returns a markdown snippet to insert into a slide.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "base64_data": .object(["type": "string", "description": "Base64-encoded image data (PNG, JPEG, GIF, or TIFF)"]),
+                    "name": .object(["type": "string", "description": "Optional name for the image file (without extension)"]),
+                ]),
+                "required": .array([.string("base64_data")]),
             ])
         ),
     ]
@@ -266,12 +288,34 @@ enum CiceroToolHandler {
             )
             return textResult("Presentation created from provided markdown.")
 
+        case "auth_status":
+            let resp: AuthStatusResponse = try await client.get("/auth/status")
+            if resp.authenticated {
+                let user = resp.username ?? "unknown"
+                return textResult("Authenticated as \(user)")
+            } else {
+                return textResult("Not authenticated. Sign in via Settings (Cmd+,) in the Cicero app.")
+            }
+
         case "publish_gist":
             let isPublic = arguments?["public"]?.boolValue ?? false
             let resp: PublishGistResponse = try await client.post(
                 "/publish", body: PublishGistRequest(isPublic: isPublic)
             )
-            return textResult("Published gist: \(resp.url)")
+            return textResult("Published: \(resp.url)")
+
+        case "export_pdf":
+            let resp: ExportPDFResponse = try await client.get("/export/pdf")
+            return textResult("PDF exported successfully (\(resp.pageCount) pages). Base64 PDF data length: \(resp.base64PDF.count) characters.")
+
+        case "add_image":
+            let base64Data = arguments?["base64_data"]?.stringValue ?? ""
+            let name = arguments?["name"]?.stringValue
+            let resp: AddImageResponse = try await client.post(
+                "/images",
+                body: AddImageRequest(base64Data: base64Data, name: name)
+            )
+            return textResult("Image stored at \(resp.relativePath). Insert this markdown into a slide:\n\(resp.markdownSnippet)")
 
         default:
             return .init(

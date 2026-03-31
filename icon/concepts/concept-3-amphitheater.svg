@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient: deep teal to dark emerald -->
+    <linearGradient id="bg-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a3d3d"/>
+      <stop offset="100%" stop-color="#062626"/>
+    </linearGradient>
+
+    <!-- Arc gradient: warm copper to bright amber -->
+    <linearGradient id="arc-gradient" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#c87941"/>
+      <stop offset="100%" stop-color="#e8a849"/>
+    </linearGradient>
+
+    <!-- Center glow radial gradient -->
+    <radialGradient id="center-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#f0ece4" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#f0ece4" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Podium dot radial gradient -->
+    <radialGradient id="podium-gradient" cx="0.4" cy="0.35" r="0.6">
+      <stop offset="0%" stop-color="#f0ece4"/>
+      <stop offset="60%" stop-color="#e0d8c8"/>
+      <stop offset="100%" stop-color="#c8bfad"/>
+    </radialGradient>
+
+    <!-- Subtle inner shadow for background depth -->
+    <radialGradient id="bg-vignette" cx="0.5" cy="0.45" r="0.7">
+      <stop offset="0%" stop-color="#0a3d3d" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#031515" stop-opacity="0.6"/>
+    </radialGradient>
+
+    <!-- Shadow filter for arcs -->
+    <filter id="arc-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#031515" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Glow filter for podium dot -->
+    <filter id="podium-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft outer glow for arcs -->
+    <filter id="arc-glow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- macOS squircle clip path -->
+    <clipPath id="squircle-clip">
+      <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+
+  <!-- Clipped to squircle for macOS icon style -->
+  <g id="icon" clip-path="url(#squircle-clip)">
+
+    <!-- Background -->
+    <g id="background">
+      <rect width="1024" height="1024" fill="url(#bg-gradient)"/>
+      <rect width="1024" height="1024" fill="url(#bg-vignette)"/>
+    </g>
+
+    <!-- Subtle ambient glow behind arcs -->
+    <g id="ambient-glow">
+      <ellipse cx="512" cy="580" rx="320" ry="280" fill="url(#center-glow)"/>
+    </g>
+
+    <!-- Amphitheater arcs group — centered at (512, 620), radiating upward -->
+    <g id="amphitheater-arcs" filter="url(#arc-glow)">
+
+      <!-- Arc 4 (outermost) — largest radius, lowest opacity -->
+      <path
+        d="M 182,620 A 330,330 0 0,1 842,620"
+        fill="none"
+        stroke="url(#arc-gradient)"
+        stroke-width="36"
+        stroke-linecap="round"
+        opacity="0.25"
+        filter="url(#arc-shadow)"
+      />
+
+      <!-- Arc 3 -->
+      <path
+        d="M 252,620 A 260,260 0 0,1 772,620"
+        fill="none"
+        stroke="url(#arc-gradient)"
+        stroke-width="38"
+        stroke-linecap="round"
+        opacity="0.45"
+        filter="url(#arc-shadow)"
+      />
+
+      <!-- Arc 2 -->
+      <path
+        d="M 327,620 A 185,185 0 0,1 697,620"
+        fill="none"
+        stroke="url(#arc-gradient)"
+        stroke-width="40"
+        stroke-linecap="round"
+        opacity="0.7"
+        filter="url(#arc-shadow)"
+      />
+
+      <!-- Arc 1 (innermost) — smallest radius, full opacity -->
+      <path
+        d="M 407,620 A 105,105 0 0,1 617,620"
+        fill="none"
+        stroke="url(#arc-gradient)"
+        stroke-width="42"
+        stroke-linecap="round"
+        opacity="1.0"
+        filter="url(#arc-shadow)"
+      />
+    </g>
+
+    <!-- Central podium dot -->
+    <g id="podium" filter="url(#podium-glow)">
+      <!-- Warm glow halo -->
+      <circle cx="512" cy="660" r="48" fill="#e8a849" opacity="0.15"/>
+      <!-- Main dot with highlight gradient -->
+      <circle cx="512" cy="660" r="28" fill="url(#podium-gradient)"/>
+    </g>
+
+    <!-- Thin horizontal podium line / stage -->
+    <g id="stage">
+      <line x1="420" y1="710" x2="604" y2="710" stroke="#f0ece4" stroke-width="3" stroke-linecap="round" opacity="0.2"/>
+    </g>
+
+  </g>
+</svg>

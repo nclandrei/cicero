@@ -6,10 +6,14 @@ final class LocalServer {
     private let server = HttpServer()
     private let presentation: Presentation
     private let screenshotService: ScreenshotService
+    private let pdfExportService: PDFExportService
+    private let auth: GitHubAuth?
 
-    init(presentation: Presentation) {
+    init(presentation: Presentation, auth: GitHubAuth? = nil) {
         self.presentation = presentation
+        self.auth = auth
         self.screenshotService = ScreenshotService(presentation: presentation)
+        self.pdfExportService = PDFExportService(screenshotService: screenshotService)
         setupRoutes()
     }
 
@@ -210,6 +214,63 @@ final class LocalServer {
             return self.jsonResponse(SuccessResponse(success: true, message: "Presentation created"))
         }
 
+        server.GET["/export/pdf"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let result = self.onMain { () -> ExportPDFResponse? in
+                let slides = self.presentation.slides
+                guard !slides.isEmpty else { return nil }
+                guard let pdfData = self.pdfExportService.exportPDF(slides: slides) else { return nil }
+                return ExportPDFResponse(
+                    base64PDF: pdfData.base64EncodedString(),
+                    pageCount: slides.count
+                )
+            }
+            guard let result else { return self.jsonError("Failed to export PDF") }
+            return self.jsonResponse(result)
+        }
+
+        server.POST["/images"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: AddImageRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body")
+            }
+            guard let imageData = Data(base64Encoded: body.base64Data) else {
+                return self.jsonError("Invalid base64 image data")
+            }
+            let result = self.onMain { () -> AddImageResponse? in
+                guard let store = self.presentation.imageStore else {
+                    return nil
+                }
+                guard let relativePath = store.storeImage(imageData, suggestedName: body.name) else {
+                    return nil
+                }
+                let alt = body.name ?? "image"
+                let snippet = "![\(alt)](\(relativePath))"
+                return AddImageResponse(relativePath: relativePath, markdownSnippet: snippet)
+            }
+            guard let result else {
+                return self.jsonError("Failed to store image. Is a presentation file saved?")
+            }
+            return self.jsonResponse(result)
+        }
+
+        server.GET["/auth/status"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            guard let auth = self.auth else {
+                return self.jsonResponse(AuthStatusResponse(authenticated: false, username: nil))
+            }
+            var authenticated = false
+            var username: String?
+            let semaphore = DispatchSemaphore(value: 0)
+            Task {
+                authenticated = await auth.isAuthenticated
+                username = await auth.username
+                semaphore.signal()
+            }
+            semaphore.wait()
+            return self.jsonResponse(AuthStatusResponse(authenticated: authenticated, username: username))
+        }
+
         server.POST["/publish"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let body: PublishGistRequest? = self.decodeBody(request)
@@ -220,6 +281,23 @@ final class LocalServer {
             let existingGistId = self.onMain { self.presentation.metadata.gistId }
             let filename = "\(title).md"
 
+            // Get token from auth
+            guard let auth = self.auth else {
+                return self.jsonError("Not signed in to GitHub. Sign in via Settings (Cmd+,).", status: 401)
+            }
+
+            var token: String?
+            let tokenSemaphore = DispatchSemaphore(value: 0)
+            Task {
+                token = await auth.token
+                tokenSemaphore.signal()
+            }
+            tokenSemaphore.wait()
+
+            guard let token else {
+                return self.jsonError("Not signed in to GitHub. Sign in via Settings (Cmd+,).", status: 401)
+            }
+
             // Run async gist publish synchronously for the HTTP handler
             var result: (gistId: String, url: String)?
             var error: Error?
@@ -227,6 +305,7 @@ final class LocalServer {
             Task {
                 do {
                     result = try await GistService.shared.publish(
+                        token: token,
                         filename: filename,
                         content: markdown,
                         description: title,
@@ -252,7 +331,8 @@ final class LocalServer {
                 self.presentation.metadata.gistId = result.gistId
             }
 
-            return self.jsonResponse(PublishGistResponse(gistId: result.gistId, url: result.url))
+            let ciceroURL = "https://cicero.nicolaeandrei.com/#/g/\(result.gistId)"
+            return self.jsonResponse(PublishGistResponse(gistId: result.gistId, url: ciceroURL))
         }
     }
 

@@ -28,6 +28,9 @@ let package = Package(
                 .product(name: "Splash", package: "Splash"),
                 .product(name: "Swifter", package: "swifter"),
             ],
+            resources: [
+                .copy("Resources/AppIcon.icns"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(

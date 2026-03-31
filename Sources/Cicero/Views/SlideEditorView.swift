@@ -1,7 +1,9 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SlideEditorView: View {
     @Environment(Presentation.self) private var presentation
+    @State private var dropTargeted = false
 
     var body: some View {
         @Bindable var presentation = presentation
@@ -35,6 +37,57 @@ struct SlideEditorView: View {
             ))
             .font(.system(.body, design: .monospaced))
             .scrollContentBackground(.visible)
+            .onDrop(of: [.image, .fileURL], isTargeted: $dropTargeted) { providers in
+                handleDrop(providers)
+                return true
+            }
+            .overlay {
+                if dropTargeted {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor, lineWidth: 3)
+                        .background(Color.accentColor.opacity(0.1))
+                        .allowsHitTesting(false)
+                }
+            }
         }
+        .onPasteCommand(of: [.image, .png, .jpeg, .tiff]) { providers in
+            handleDrop(providers)
+        }
+    }
+
+    private func handleDrop(_ providers: [NSItemProvider]) {
+        for provider in providers {
+            // Try loading as file URL first (for Finder drags)
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                    guard let data = item as? Data,
+                          let url = URL(dataRepresentation: data, relativeTo: nil),
+                          let imageData = try? Data(contentsOf: url)
+                    else { return }
+                    let name = url.deletingPathExtension().lastPathComponent
+                    DispatchQueue.main.async {
+                        insertImage(data: imageData, name: name)
+                    }
+                }
+            }
+            // Try loading as image data
+            else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    guard let data else { return }
+                    DispatchQueue.main.async {
+                        insertImage(data: data, name: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    private func insertImage(data: Data, name: String?) {
+        guard let snippet = presentation.addImage(data, name: name) else { return }
+        // Append the image markdown to the current slide's content
+        let currentIdx = presentation.currentIndex
+        guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
+        let currentContent = presentation.slides[currentIdx].content
+        presentation.updateSlide(at: currentIdx, content: currentContent + "\n\n" + snippet)
     }
 }

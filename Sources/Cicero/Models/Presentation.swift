@@ -8,9 +8,16 @@ final class Presentation {
     var metadata: PresentationMetadata = PresentationMetadata()
     var slides: [Slide] = []
     var currentIndex: Int = 0
-    var filePath: URL?
+    var filePath: URL? {
+        didSet {
+            if let filePath {
+                imageStore = ImageStore(baseURL: filePath)
+            }
+        }
+    }
     var isPresenting: Bool = false
     var isDirty: Bool = false
+    var imageStore: ImageStore?
 
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
@@ -124,6 +131,15 @@ final class Presentation {
         Questions?
         """
         loadMarkdown(sample)
+    }
+
+    /// Stores an image and returns the markdown snippet to insert
+    func addImage(_ data: Data, name: String? = nil) -> String? {
+        guard let store = imageStore,
+              let path = store.storeImage(data, suggestedName: name)
+        else { return nil }
+        let alt = name ?? "image"
+        return "![\(alt)](\(path))"
     }
 
     // MARK: - Private

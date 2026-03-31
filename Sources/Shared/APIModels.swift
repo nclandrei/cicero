@@ -90,6 +90,46 @@ public struct SuccessResponse: Codable, Sendable {
     }
 }
 
+public struct ExportPDFResponse: Codable, Sendable {
+    public let base64PDF: String
+    public let pageCount: Int
+
+    public init(base64PDF: String, pageCount: Int) {
+        self.base64PDF = base64PDF
+        self.pageCount = pageCount
+    }
+}
+
+public struct AddImageRequest: Codable, Sendable {
+    public let base64Data: String
+    public let name: String?
+
+    public init(base64Data: String, name: String? = nil) {
+        self.base64Data = base64Data
+        self.name = name
+    }
+}
+
+public struct AddImageResponse: Codable, Sendable {
+    public let relativePath: String
+    public let markdownSnippet: String
+
+    public init(relativePath: String, markdownSnippet: String) {
+        self.relativePath = relativePath
+        self.markdownSnippet = markdownSnippet
+    }
+}
+
+public struct AuthStatusResponse: Codable, Sendable {
+    public let authenticated: Bool
+    public let username: String?
+
+    public init(authenticated: Bool, username: String?) {
+        self.authenticated = authenticated
+        self.username = username
+    }
+}
+
 public struct ErrorResponse: Codable, Sendable {
     public let error: String
 

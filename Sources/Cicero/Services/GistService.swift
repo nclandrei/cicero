@@ -1,64 +1,16 @@
 import Foundation
-import Security
 
 final class GistService {
     static let shared = GistService()
-    private static let keychainService = "com.andreinicolas.Cicero.github"
-
-    // MARK: - Keychain
-
-    func storeToken(_ token: String) throws {
-        guard let data = token.data(using: .utf8) else { return }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: "github_token",
-            kSecValueData as String: data,
-        ]
-        SecItemDelete(query as CFDictionary)
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw NSError(domain: "GistService", code: Int(status),
-                          userInfo: [NSLocalizedDescriptionKey: "Failed to store token in Keychain"])
-        }
-    }
-
-    func getToken() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: "github_token",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    func deleteToken() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: "github_token",
-        ]
-        SecItemDelete(query as CFDictionary)
-    }
-
-    // MARK: - API
 
     func publish(
+        token: String,
         filename: String,
         content: String,
         description: String,
         isPublic: Bool,
         existingGistId: String?
     ) async throws -> (gistId: String, url: String) {
-        guard let token = getToken() else {
-            throw GistError.noToken
-        }
-
         let body: [String: Any] = [
             "description": description,
             "public": isPublic,
@@ -109,7 +61,7 @@ enum GistError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noToken: return "No GitHub token configured. Add one in Cicero preferences."
+        case .noToken: return "Not signed in to GitHub. Sign in via Settings (Cmd+,)."
         case .apiError(let msg): return "GitHub API error: \(msg)"
         case .invalidResponse: return "Invalid response from GitHub API"
         }
