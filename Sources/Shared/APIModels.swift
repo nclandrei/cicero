@@ -6,11 +6,15 @@ public struct SlideInfo: Codable, Sendable {
     public let index: Int
     public let title: String?
     public let content: String
+    public let layout: String?
+    public let imageURL: String?
 
-    public init(index: Int, title: String?, content: String) {
+    public init(index: Int, title: String?, content: String, layout: String? = nil, imageURL: String? = nil) {
         self.index = index
         self.title = title
         self.content = content
+        self.layout = layout
+        self.imageURL = imageURL
     }
 }
 

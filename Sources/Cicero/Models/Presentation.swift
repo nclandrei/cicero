@@ -97,6 +97,7 @@ final class Presentation {
         author: Andrei Nicolae
         ---
 
+        layout: title
         # Welcome to Cicero
 
         AI-native presentations in markdown
@@ -145,7 +146,9 @@ final class Presentation {
     // MARK: - Private
 
     private func reindexSlides() {
-        slides = slides.enumerated().map { Slide(id: $0.offset, content: $0.element.content) }
+        slides = slides.enumerated().map { index, slide in
+            Slide(id: index, content: slide.content, body: slide.body, layout: slide.layout, imageURL: slide.imageURL)
+        }
     }
 
     private func rebuildMarkdown() {
