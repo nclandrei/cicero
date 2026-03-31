@@ -87,7 +87,13 @@
       <stop offset="60%" stop-color="#000000" stop-opacity="0.2"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </linearGradient>
+    <!-- macOS squircle clip path (~22% corner radius) -->
+    <clipPath id="squircle">
+      <rect width="1024" height="1024" rx="224" ry="224"/>
+    </clipPath>
   </defs>
+
+  <g clip-path="url(#squircle)">
 
   <!-- Background -->
   <g id="background">
@@ -224,4 +230,6 @@
 
   <!-- Top ambient light overlay for depth -->
   <rect x="0" y="0" width="1024" height="300" fill="url(#ambient-light)" opacity="0.5"/>
+
+  </g><!-- end squircle clip -->
 </svg>
