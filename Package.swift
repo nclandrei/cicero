@@ -44,6 +44,17 @@ let package = Package(
         .testTarget(
             name: "CiceroTests",
             dependencies: ["Shared"],
+            resources: [
+                .copy("../../../Sources/Cicero/Resources/AppIcon.icns"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "MCPIntegrationTests",
+            dependencies: [
+                "Shared",
+                .product(name: "MCP", package: "swift-sdk"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]
