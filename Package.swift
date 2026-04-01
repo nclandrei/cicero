@@ -45,7 +45,7 @@ let package = Package(
             name: "CiceroTests",
             dependencies: ["Shared"],
             resources: [
-                .copy("../../../Sources/Cicero/Resources/AppIcon.icns"),
+                .copy("Resources/AppIcon.icns"),
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
