@@ -25,12 +25,6 @@ struct ContentView: View {
                 }
             )
                 .frame(minWidth: 400, idealWidth: 700)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
-                .id(presentation.currentIndex)
-                .animation(.easeInOut(duration: 0.3), value: presentation.currentIndex)
         }
         .toolbar {
             ToolbarView(
