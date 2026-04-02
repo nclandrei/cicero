@@ -34,6 +34,11 @@ final class Presentation {
         metadata.resolveTheme()
     }
 
+    func setFont(_ name: String?) {
+        metadata.font = name
+        rebuildMarkdown()
+    }
+
     func setTheme(_ name: String) {
         metadata.theme = name
         if name != "custom" {

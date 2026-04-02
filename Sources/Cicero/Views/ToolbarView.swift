@@ -62,6 +62,40 @@ struct ToolbarView: ToolbarContent {
             .frame(width: 160)
 
             Menu {
+                Button(action: { presentation.setFont(nil) }) {
+                    HStack {
+                        Text("System Default")
+                        if presentation.metadata.font == nil {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                Divider()
+                ForEach([
+                    "SF Pro Display",
+                    "Helvetica Neue",
+                    "Georgia",
+                    "Palatino",
+                    "Courier New",
+                    "Menlo",
+                    "SF Mono",
+                ], id: \.self) { fontName in
+                    Button(action: { presentation.setFont(fontName) }) {
+                        HStack {
+                            Text(fontName)
+                                .font(.custom(fontName, size: 14))
+                            if presentation.metadata.font == fontName {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "textformat")
+            }
+            .help("Slide font")
+
+            Menu {
                 ForEach(ThemeRegistry.builtIn, id: \.name) { theme in
                     Button(action: { presentation.setTheme(theme.name) }) {
                         HStack {
