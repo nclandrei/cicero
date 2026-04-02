@@ -368,6 +368,27 @@ final class LocalServer {
             return self.jsonResponse(resp)
         }
 
+        server.GET["/search"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let query = request.queryParams.first(where: { $0.0 == "q" })?.1,
+                  !query.isEmpty
+            else {
+                return self.jsonError("Missing 'q' query parameter")
+            }
+            let decoded = query.removingPercentEncoding ?? query
+            let matches = self.onMain { () -> [SearchMatch] in
+                let lower = decoded.lowercased()
+                return self.presentation.slides.compactMap { slide -> SearchMatch? in
+                    let body = slide.body.lowercased()
+                    let title = slide.title?.lowercased() ?? ""
+                    guard body.contains(lower) || title.contains(lower) else { return nil }
+                    let excerpt = Self.extractExcerpt(from: slide.body, query: decoded)
+                    return SearchMatch(index: slide.id, title: slide.title, excerpt: excerpt)
+                }
+            }
+            return self.jsonResponse(SearchResponse(query: decoded, matches: matches))
+        }
+
         server.POST["/publish"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let body: PublishGistRequest? = self.decodeBody(request)
@@ -431,6 +452,23 @@ final class LocalServer {
             let ciceroURL = "https://cicero.nicolaeandrei.com/#/g/\(result.gistId)"
             return self.jsonResponse(PublishGistResponse(gistId: result.gistId, url: ciceroURL))
         }
+    }
+
+    // MARK: - Search helper
+
+    private static func extractExcerpt(from body: String, query: String, radius: Int = 60) -> String {
+        guard let range = body.range(of: query, options: .caseInsensitive) else {
+            // Fallback: return first `radius` chars
+            let end = body.index(body.startIndex, offsetBy: min(radius, body.count))
+            return String(body[body.startIndex..<end])
+        }
+        let matchStart = body.distance(from: body.startIndex, to: range.lowerBound)
+        let matchEnd = body.distance(from: body.startIndex, to: range.upperBound)
+        let excerptStart = max(0, matchStart - radius)
+        let excerptEnd = min(body.count, matchEnd + radius)
+        let start = body.index(body.startIndex, offsetBy: excerptStart)
+        let end = body.index(body.startIndex, offsetBy: excerptEnd)
+        return String(body[start..<end]).replacingOccurrences(of: "\n", with: " ")
     }
 
     // MARK: - Helpers
