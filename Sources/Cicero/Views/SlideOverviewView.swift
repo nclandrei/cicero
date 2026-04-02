@@ -1,10 +1,14 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import Shared
 
 struct SlideOverviewView: View {
     @Environment(Presentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
     let theme: SlideTheme
+
+    @State private var draggingIndex: Int?
+    @State private var dropTargetIndex: Int?
 
     private let columns = [
         GridItem(.adaptive(minimum: 280, maximum: 400), spacing: 20)
@@ -26,19 +30,48 @@ struct SlideOverviewView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 20) {
                     ForEach(Array(presentation.slides.enumerated()), id: \.element.id) { index, slide in
-                        SlideThumbCard(
-                            slide: slide,
-                            index: index,
-                            isSelected: index == presentation.currentIndex,
-                            theme: theme
-                        ) {
-                            presentation.navigate(to: index)
-                            dismiss()
-                        }
+                        slideCard(slide: slide, index: index)
                     }
                 }
                 .padding(20)
             }
+        }
+    }
+
+    private func slideCard(slide: Slide, index: Int) -> some View {
+        SlideThumbCard(
+            slide: slide,
+            index: index,
+            isSelected: index == presentation.currentIndex,
+            isDragTarget: dropTargetIndex == index,
+            isDragging: draggingIndex == index,
+            theme: theme
+        ) {
+            presentation.navigate(to: index)
+            dismiss()
+        }
+        .onDrag {
+            draggingIndex = index
+            return NSItemProvider(object: "\(index)" as NSString)
+        }
+        .onDrop(of: [UTType.text], isTargeted: Binding(
+            get: { dropTargetIndex == index },
+            set: { targeted in dropTargetIndex = targeted ? index : nil }
+        )) { providers in
+            guard let provider = providers.first else { return false }
+            provider.loadObject(ofClass: NSString.self) { item, _ in
+                guard let str = item as? String,
+                      let sourceIndex = Int(str)
+                else { return }
+                DispatchQueue.main.async {
+                    draggingIndex = nil
+                    dropTargetIndex = nil
+                    if sourceIndex != index {
+                        presentation.moveSlide(from: sourceIndex, to: index)
+                    }
+                }
+            }
+            return true
         }
     }
 }
@@ -47,13 +80,14 @@ private struct SlideThumbCard: View {
     let slide: Slide
     let index: Int
     let isSelected: Bool
+    let isDragTarget: Bool
+    let isDragging: Bool
     let theme: SlideTheme
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                // Mini slide preview
                 ZStack {
                     theme.background
                     VStack(alignment: .leading, spacing: 4) {
@@ -74,7 +108,11 @@ private struct SlideThumbCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 3)
+                        .stroke(
+                            isDragTarget ? Color.accentColor :
+                            isSelected ? Color.accentColor.opacity(0.6) : .clear,
+                            lineWidth: isDragTarget ? 3 : 2
+                        )
                 )
 
                 Text("Slide \(index + 1)")
@@ -83,5 +121,9 @@ private struct SlideThumbCard: View {
             }
         }
         .buttonStyle(.plain)
+        .opacity(isDragging ? 0.4 : 1.0)
+        .scaleEffect(isDragTarget ? 1.03 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isDragTarget)
+        .animation(.easeInOut(duration: 0.15), value: isDragging)
     }
 }

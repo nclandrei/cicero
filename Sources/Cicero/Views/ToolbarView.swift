@@ -32,6 +32,20 @@ struct ToolbarView: ToolbarContent {
             .help("Next slide")
         }
 
+        ToolbarItemGroup {
+            Button(action: { _ = presentation.undoEdit() }) {
+                Image(systemName: "arrow.uturn.backward")
+            }
+            .disabled(!presentation.editHistory.canUndo)
+            .help("Undo (Cmd+Z)")
+
+            Button(action: { _ = presentation.redoEdit() }) {
+                Image(systemName: "arrow.uturn.forward")
+            }
+            .disabled(!presentation.editHistory.canRedo)
+            .help("Redo (Cmd+Shift+Z)")
+        }
+
         ToolbarItemGroup(placement: .primaryAction) {
             Button(action: { showOverview.toggle() }) {
                 Image(systemName: "square.grid.2x2")

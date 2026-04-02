@@ -18,6 +18,12 @@ final class Presentation {
     var isPresenting: Bool = false
     var isDirty: Bool = false
     var imageStore: ImageStore?
+    let editHistory = EditHistory()
+
+    // MARK: - Presenter Timer
+    var elapsedSeconds: Int = 0
+    var wallClock: String = TimeFormatting.wallClock()
+    private var timer: Timer?
 
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
@@ -81,6 +87,30 @@ final class Presentation {
         isDirty = true
     }
 
+    // MARK: - Undo/Redo
+
+    func undoEdit() -> Bool {
+        guard let previous = editHistory.undo(currentText: markdown) else { return false }
+        let result = SlideParser.parse(previous)
+        markdown = previous
+        metadata = result.metadata
+        slides = result.slides
+        currentIndex = min(currentIndex, max(0, slides.count - 1))
+        isDirty = true
+        return true
+    }
+
+    func redoEdit() -> Bool {
+        guard let next = editHistory.redo(currentText: markdown) else { return false }
+        let result = SlideParser.parse(next)
+        markdown = next
+        metadata = result.metadata
+        slides = result.slides
+        currentIndex = min(currentIndex, max(0, slides.count - 1))
+        isDirty = true
+        return true
+    }
+
     func navigate(to index: Int) {
         guard index >= 0 && index < slides.count else { return }
         currentIndex = index
@@ -99,6 +129,24 @@ final class Presentation {
         let insertAt = (index ?? slides.count - 1) + 1
         slides.insert(Slide(id: insertAt, content: content), at: min(insertAt, slides.count))
         reindexSlides()
+        rebuildMarkdown()
+    }
+
+    func moveSlide(from source: Int, to destination: Int) {
+        guard source >= 0 && source < slides.count,
+              destination >= 0 && destination < slides.count,
+              source != destination
+        else { return }
+        let slide = slides.remove(at: source)
+        slides.insert(slide, at: destination)
+        reindexSlides()
+        if currentIndex == source {
+            currentIndex = destination
+        } else if source < currentIndex && destination >= currentIndex {
+            currentIndex -= 1
+        } else if source > currentIndex && destination <= currentIndex {
+            currentIndex += 1
+        }
         rebuildMarkdown()
     }
 
@@ -176,6 +224,25 @@ final class Presentation {
         else { return nil }
         let alt = name ?? "image"
         return "![\(alt)](\(path))"
+    }
+
+    // MARK: - Timer
+
+    func startTimer() {
+        elapsedSeconds = 0
+        wallClock = TimeFormatting.wallClock()
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.elapsedSeconds += 1
+            self.wallClock = TimeFormatting.wallClock()
+        }
+    }
+
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+        elapsedSeconds = 0
     }
 
     // MARK: - Private

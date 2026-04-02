@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var selectedTheme: AppTheme = .auto
     @State private var showOverview = false
     @State private var autoSaveTask: Task<Void, Never>?
+    @State private var checkpointTask: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -45,6 +46,9 @@ struct ContentView: View {
                 scheduleAutoSave()
             }
         }
+        .onChange(of: presentation.markdown) { oldValue, _ in
+            scheduleCheckpoint(oldValue)
+        }
     }
 
     private var effectiveTheme: SlideTheme {
@@ -79,6 +83,15 @@ struct ContentView: View {
         )
         if newContent != content {
             presentation.updateSlide(at: idx, content: newContent)
+        }
+    }
+
+    private func scheduleCheckpoint(_ text: String) {
+        checkpointTask?.cancel()
+        checkpointTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            presentation.editHistory.checkpoint(text)
         }
     }
 

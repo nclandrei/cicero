@@ -55,6 +55,20 @@ struct CiceroApp: App {
         }
         .defaultSize(width: 1200, height: 700)
         .commands {
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") {
+                    _ = presentation.undoEdit()
+                }
+                .keyboardShortcut("z")
+                .disabled(!presentation.editHistory.canUndo)
+
+                Button("Redo") {
+                    _ = presentation.redoEdit()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!presentation.editHistory.canRedo)
+            }
+
             // Remove the default "New Window" command
             CommandGroup(replacing: .newItem) {
                 Button("New Presentation") {

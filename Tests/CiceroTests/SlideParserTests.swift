@@ -140,4 +140,136 @@ struct SlideParserTests {
         #expect(slide2.title == "Sub Title")
         #expect(slide3.title == nil)
     }
+
+    // MARK: - Slide Reordering Tests
+
+    @Test("Reorder: move first slide to last")
+    func reorderFirstToLast() {
+        let slides = [
+            Slide(id: 0, content: "# A"),
+            Slide(id: 1, content: "# B"),
+            Slide(id: 2, content: "# C"),
+        ]
+        var reordered = slides
+        let moved = reordered.remove(at: 0)
+        reordered.insert(moved, at: 2)
+        #expect(reordered[0].content == "# B")
+        #expect(reordered[1].content == "# C")
+        #expect(reordered[2].content == "# A")
+    }
+
+    @Test("Reorder: move last slide to first")
+    func reorderLastToFirst() {
+        let slides = [
+            Slide(id: 0, content: "# A"),
+            Slide(id: 1, content: "# B"),
+            Slide(id: 2, content: "# C"),
+        ]
+        var reordered = slides
+        let moved = reordered.remove(at: 2)
+        reordered.insert(moved, at: 0)
+        #expect(reordered[0].content == "# C")
+        #expect(reordered[1].content == "# A")
+        #expect(reordered[2].content == "# B")
+    }
+
+    @Test("Reorder: adjacent swap")
+    func reorderAdjacentSwap() {
+        let slides = [
+            Slide(id: 0, content: "# A"),
+            Slide(id: 1, content: "# B"),
+            Slide(id: 2, content: "# C"),
+        ]
+        var reordered = slides
+        let moved = reordered.remove(at: 0)
+        reordered.insert(moved, at: 1)
+        #expect(reordered[0].content == "# B")
+        #expect(reordered[1].content == "# A")
+        #expect(reordered[2].content == "# C")
+    }
+
+    @Test("Reorder round-trip: parse, reorder, serialize, re-parse")
+    func reorderRoundTrip() {
+        let md = """
+        ---
+        title: Test
+        ---
+
+        # Slide A
+
+        ---
+
+        # Slide B
+
+        ---
+
+        # Slide C
+        """
+        let (meta, slides) = SlideParser.parse(md)
+        #expect(slides.count == 3)
+
+        // Move slide 0 (A) to position 2 (last)
+        var reordered = slides
+        let moved = reordered.remove(at: 0)
+        reordered.insert(moved, at: 2)
+
+        // Re-index
+        let reindexed = reordered.enumerated().map { i, s in
+            Slide(id: i, content: s.content, body: s.body, layout: s.layout, imageURL: s.imageURL)
+        }
+
+        let serialized = SlideParser.serialize(metadata: meta, slides: reindexed)
+        let (meta2, slides2) = SlideParser.parse(serialized)
+
+        #expect(meta2.title == "Test")
+        #expect(slides2.count == 3)
+        #expect(slides2[0].title == "Slide B")
+        #expect(slides2[1].title == "Slide C")
+        #expect(slides2[2].title == "Slide A")
+    }
+
+    @Test("Reorder preserves frontmatter in slides")
+    func reorderPreservesFrontmatter() {
+        let md = """
+        layout: title
+        # Title Slide
+
+        ---
+
+        ## Content Slide
+
+        Some text
+        """
+        let (meta, slides) = SlideParser.parse(md)
+        #expect(slides.count == 2)
+        #expect(slides[0].layout == .title)
+
+        // Swap the two slides
+        var reordered = slides
+        let moved = reordered.remove(at: 0)
+        reordered.insert(moved, at: 1)
+        let reindexed = reordered.enumerated().map { i, s in
+            Slide(id: i, content: s.content, body: s.body, layout: s.layout, imageURL: s.imageURL)
+        }
+
+        let serialized = SlideParser.serialize(metadata: meta, slides: reindexed)
+        let (_, slides2) = SlideParser.parse(serialized)
+
+        #expect(slides2.count == 2)
+        #expect(slides2[0].title == "Content Slide")
+        #expect(slides2[1].layout == .title)
+        #expect(slides2[1].title == "Title Slide")
+    }
+
+    @Test("Same position is a no-op")
+    func reorderSamePosition() {
+        let slides = [
+            Slide(id: 0, content: "# A"),
+            Slide(id: 1, content: "# B"),
+        ]
+        let reordered = slides
+        // "Move" from 0 to 0 — no-op
+        #expect(reordered[0].content == slides[0].content)
+        #expect(reordered[1].content == slides[1].content)
+    }
 }

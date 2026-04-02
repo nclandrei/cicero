@@ -129,6 +129,24 @@ final class LocalServer {
             }
         }
 
+        server.POST["/slides/reorder"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: ReorderRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"from\": Int, \"to\": Int}")
+            }
+            return self.onMain {
+                let count = self.presentation.slides.count
+                guard body.from >= 0 && body.from < count else {
+                    return self.jsonError("'from' index out of range", status: 400)
+                }
+                guard body.to >= 0 && body.to < count else {
+                    return self.jsonError("'to' index out of range", status: 400)
+                }
+                self.presentation.moveSlide(from: body.from, to: body.to)
+                return self.jsonResponse(SuccessResponse(success: true, message: "Moved slide from \(body.from) to \(body.to)"))
+            }
+        }
+
         server.GET["/current"] = { [weak self] _ in
             guard let self else { return .internalServerError }
             let resp = self.onMain {
@@ -202,6 +220,28 @@ final class LocalServer {
                 NotificationCenter.default.post(name: .stopPresentation, object: nil)
             }
             return self.jsonResponse(SuccessResponse(success: true))
+        }
+
+        server.POST["/undo"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let result = self.onMain { () -> UndoRedoResponse in
+                if self.presentation.undoEdit() {
+                    return UndoRedoResponse(success: true, content: self.presentation.markdown)
+                }
+                return UndoRedoResponse(success: false, content: nil)
+            }
+            return self.jsonResponse(result)
+        }
+
+        server.POST["/redo"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let result = self.onMain { () -> UndoRedoResponse in
+                if self.presentation.redoEdit() {
+                    return UndoRedoResponse(success: true, content: self.presentation.markdown)
+                }
+                return UndoRedoResponse(success: false, content: nil)
+            }
+            return self.jsonResponse(result)
         }
 
         server.POST["/open"] = { [weak self] request in

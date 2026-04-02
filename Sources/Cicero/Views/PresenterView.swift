@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 struct PresenterView: View {
     @Environment(Presentation.self) private var presentation
@@ -35,17 +36,41 @@ struct PresenterView: View {
                     .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { presentation.next() } }
             }
 
-            // Slide counter
+            // HUD overlay
             VStack {
                 Spacer()
-                Text("\(presentation.currentIndex + 1) / \(presentation.slides.count)")
+                HStack {
+                    // Timer & clock — bottom left
+                    HStack(spacing: 8) {
+                        Text(TimeFormatting.elapsedTime(seconds: presentation.elapsedSeconds))
+                        Text("·")
+                        Text(presentation.wallClock)
+                    }
                     .font(.caption)
+                    .monospacedDigit()
                     .foregroundStyle(.white.opacity(0.5))
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.35), in: Capsule())
+
+                    Spacer()
+
+                    // Slide counter — bottom right
+                    Text("\(presentation.currentIndex + 1) / \(presentation.slides.count)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.35), in: Capsule())
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
             }
         }
         .onAppear {
             presentation.isPresenting = true
+            presentation.startTimer()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if let window = NSApp.windows.first(where: { $0.title == "Presenter" || $0.identifier?.rawValue == "presenter" }) {
                     window.toggleFullScreen(nil)
@@ -54,6 +79,7 @@ struct PresenterView: View {
         }
         .onDisappear {
             presentation.isPresenting = false
+            presentation.stopTimer()
         }
         .onKeyPress(.leftArrow) {
             withAnimation(.easeInOut(duration: 0.3)) { presentation.previous() }

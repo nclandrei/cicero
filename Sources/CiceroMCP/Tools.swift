@@ -60,6 +60,18 @@ enum CiceroTools {
             ])
         ),
         Tool(
+            name: "reorder_slide",
+            description: "Move a slide from one position to another (0-based indices)",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "from": .object(["type": "integer", "description": "Source slide index (0-based)"]),
+                    "to": .object(["type": "integer", "description": "Destination slide index (0-based)"]),
+                ]),
+                "required": .array([.string("from"), .string("to")]),
+            ])
+        ),
+        Tool(
             name: "next_slide",
             description: "Navigate to the next slide",
             inputSchema: .object(["type": "object", "properties": .object([:])])
@@ -191,6 +203,16 @@ enum CiceroTools {
                 "required": .array([.string("name")]),
             ])
         ),
+        Tool(
+            name: "undo",
+            description: "Undo the last edit to the presentation",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "redo",
+            description: "Redo the last undone edit to the presentation",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
     ]
 }
 
@@ -239,6 +261,15 @@ enum CiceroToolHandler {
             let index = arguments?["index"]?.intValue ?? 0
             let _: SuccessResponse = try await client.delete("/slides/\(index)")
             return textResult("Slide \(index + 1) removed.")
+
+        case "reorder_slide":
+            let from = arguments?["from"]?.intValue ?? 0
+            let to = arguments?["to"]?.intValue ?? 0
+            let _: SuccessResponse = try await client.post(
+                "/slides/reorder",
+                body: ReorderRequest(from: from, to: to)
+            )
+            return textResult("Moved slide from position \(from + 1) to \(to + 1).")
 
         case "next_slide":
             let resp: NavigateResponse = try await client.post(
@@ -379,6 +410,22 @@ enum CiceroToolHandler {
             )
             let resp: ThemeResponse = try await client.put("/theme", body: req)
             return textResult("Theme set to: \(resp.current ?? "auto")")
+
+        case "undo":
+            let resp: UndoRedoResponse = try await client.postEmpty("/undo")
+            if resp.success {
+                return textResult("Undo successful.")
+            } else {
+                return textResult("Nothing to undo.")
+            }
+
+        case "redo":
+            let resp: UndoRedoResponse = try await client.postEmpty("/redo")
+            if resp.success {
+                return textResult("Redo successful.")
+            } else {
+                return textResult("Nothing to redo.")
+            }
 
         default:
             return .init(

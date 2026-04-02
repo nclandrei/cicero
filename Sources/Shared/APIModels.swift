@@ -96,6 +96,16 @@ public struct SuccessResponse: Codable, Sendable {
     }
 }
 
+public struct UndoRedoResponse: Codable, Sendable {
+    public let success: Bool
+    public let content: String?
+
+    public init(success: Bool, content: String? = nil) {
+        self.success = success
+        self.content = content
+    }
+}
+
 public struct ExportPDFResponse: Codable, Sendable {
     public let base64PDF: String
     public let pageCount: Int
@@ -187,6 +197,16 @@ public struct CreatePresentationRequest: Codable, Sendable {
 
     public init(markdown: String) {
         self.markdown = markdown
+    }
+}
+
+public struct ReorderRequest: Codable, Sendable {
+    public let from: Int
+    public let to: Int
+
+    public init(from: Int, to: Int) {
+        self.from = from
+        self.to = to
     }
 }
 
