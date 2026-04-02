@@ -2,10 +2,9 @@ import Testing
 import Foundation
 @testable import Shared
 
-@Suite("Proctor Validation")
+@Suite("PresentationValidator")
 struct ProctorTests {
 
-    // Helper: write content to a temp file and return the path
     private func writeTempFile(_ content: String) throws -> String {
         let dir = FileManager.default.temporaryDirectory
         let file = dir.appendingPathComponent("proctor-test-\(UUID().uuidString).md")
@@ -25,7 +24,7 @@ struct ProctorTests {
         # Hello World
         """
         let path = try writeTempFile(md)
-        let errors = validatePresentation(at: path)
+        let errors = PresentationValidator.validate(at: path)
         #expect(errors.isEmpty)
     }
 
@@ -39,7 +38,7 @@ struct ProctorTests {
         # Hello
         """
         let path = try writeTempFile(md)
-        let errors = validatePresentation(at: path)
+        let errors = PresentationValidator.validate(at: path)
         #expect(!errors.isEmpty)
         #expect(errors.first?.message.contains("not available") == true)
     }
@@ -55,7 +54,7 @@ struct ProctorTests {
         # Hello
         """
         let path = try writeTempFile(md)
-        let errors = validatePresentation(at: path)
+        let errors = PresentationValidator.validate(at: path)
         #expect(errors.contains { $0.message.contains("Invalid hex color") })
     }
 
@@ -70,13 +69,13 @@ struct ProctorTests {
         # Slide
         """
         let path = try writeTempFile(md)
-        let errors = validatePresentation(at: path)
+        let errors = PresentationValidator.validate(at: path)
         #expect(errors.contains { $0.message.contains("Unknown layout") })
     }
 
     @Test("Missing file reports error")
     func testValidateMissingFile() {
-        let errors = validatePresentation(at: "/tmp/nonexistent-\(UUID().uuidString).md")
+        let errors = PresentationValidator.validate(at: "/tmp/nonexistent-\(UUID().uuidString).md")
         #expect(!errors.isEmpty)
         #expect(errors.first?.message.contains("File not found") == true)
     }

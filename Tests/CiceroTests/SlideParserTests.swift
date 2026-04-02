@@ -261,6 +261,44 @@ struct SlideParserTests {
         #expect(slides2[1].title == "Title Slide")
     }
 
+    // MARK: - Font Parsing Tests
+
+    @Test("Parse font from frontmatter")
+    func parseFontFromFrontmatter() {
+        let md = """
+        ---
+        title: Test
+        font: Helvetica
+        ---
+
+        # Slide 1
+        """
+        let (meta, _) = SlideParser.parse(md)
+        #expect(meta.font == "Helvetica")
+    }
+
+    @Test("Serialize font round-trip")
+    func serializeFontRoundTrip() {
+        let meta = PresentationMetadata(title: "Test", font: "Georgia")
+        let slides = [Slide(id: 0, content: "# Hello")]
+        let serialized = SlideParser.serialize(metadata: meta, slides: slides)
+        let (meta2, _) = SlideParser.parse(serialized)
+        #expect(meta2.font == "Georgia")
+    }
+
+    @Test("No font in frontmatter")
+    func noFontInFrontmatter() {
+        let md = """
+        ---
+        title: Test
+        ---
+
+        # Slide 1
+        """
+        let (meta, _) = SlideParser.parse(md)
+        #expect(meta.font == nil)
+    }
+
     @Test("Same position is a no-op")
     func reorderSamePosition() {
         let slides = [

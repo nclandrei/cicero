@@ -16,91 +16,6 @@ func colored(_ text: String, _ color: ANSIColor) -> String {
     "\(color.rawValue)\(text)\(ANSIColor.reset.rawValue)"
 }
 
-// MARK: - Validation
-
-struct ValidationError {
-    let message: String
-    let isWarning: Bool
-}
-
-func validatePresentation(at path: String) -> [ValidationError] {
-    var errors: [ValidationError] = []
-
-    let url = URL(fileURLWithPath: path)
-    guard FileManager.default.fileExists(atPath: path) else {
-        errors.append(ValidationError(message: "File not found: \(path)", isWarning: false))
-        return errors
-    }
-
-    guard let content = try? String(contentsOf: url, encoding: .utf8) else {
-        errors.append(ValidationError(message: "Could not read file: \(path)", isWarning: false))
-        return errors
-    }
-
-    let (metadata, slides) = SlideParser.parse(content)
-
-    // Validate font
-    if let font = metadata.font {
-        let result = FontValidator.validate(font)
-        switch result {
-        case .valid:
-            break
-        case .empty:
-            errors.append(ValidationError(message: "Font name is empty", isWarning: false))
-        case .invalid(let suggestion):
-            var msg = "Font '\(font)' is not available on this system"
-            if let suggestion {
-                msg += " (did you mean '\(suggestion)'?)"
-            }
-            errors.append(ValidationError(message: msg, isWarning: false))
-        }
-    }
-
-    // Validate theme colors
-    let colorFields: [(String, String?)] = [
-        ("theme_background", metadata.themeBackground),
-        ("theme_text", metadata.themeText),
-        ("theme_heading", metadata.themeHeading),
-        ("theme_accent", metadata.themeAccent),
-        ("theme_code_background", metadata.themeCodeBackground),
-        ("theme_code_text", metadata.themeCodeText),
-    ]
-    for (key, value) in colorFields {
-        if let hex = value {
-            if ThemeDefinition.parseHex(hex) == nil {
-                errors.append(ValidationError(message: "Invalid hex color for \(key): '\(hex)'", isWarning: false))
-            }
-        }
-    }
-
-    // Validate slide layouts
-    for slide in slides {
-        // Layout is already validated by the parser (defaults to .default for unknown values),
-        // but warn if frontmatter has an unrecognized layout string
-        let lines = slide.content.components(separatedBy: "\n")
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let pair = trimmed.split(separator: ":", maxSplits: 1)
-            if pair.count == 2 {
-                let key = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
-                let value = pair[1].trimmingCharacters(in: .whitespaces)
-                if key == "layout" && SlideLayout(rawValue: value) == nil {
-                    errors.append(ValidationError(
-                        message: "Unknown layout '\(value)' on slide \(slide.id + 1) (valid: default, title, two-column, image-left, image-right, video, embed)",
-                        isWarning: false
-                    ))
-                }
-            }
-            // Stop checking after first non-frontmatter line
-            if !trimmed.isEmpty && pair.count != 2 {
-                break
-            }
-        }
-    }
-
-    return errors
-}
-
 // MARK: - Commands
 
 func printUsage() {
@@ -129,7 +44,7 @@ func listFonts() {
 func validate(filePath: String) -> Int32 {
     print(colored("Validating: \(filePath)\n", .bold))
 
-    let errors = validatePresentation(at: filePath)
+    let errors = PresentationValidator.validate(at: filePath)
 
     if errors.isEmpty {
         print(colored("✓ No issues found", .green))
