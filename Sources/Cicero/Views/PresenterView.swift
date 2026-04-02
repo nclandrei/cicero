@@ -5,6 +5,7 @@ struct PresenterView: View {
     @Environment(Presentation.self) private var presentation
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismissWindow) private var dismissWindow
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         ZStack {
@@ -69,9 +70,12 @@ struct PresenterView: View {
                 .padding(.bottom, 16)
             }
         }
+        .focusable()
+        .focused($isFocused)
         .onAppear {
             presentation.isPresenting = true
             presentation.startTimer()
+            isFocused = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if let window = NSApp.windows.first(where: { $0.title == "Presenter" || $0.identifier?.rawValue == "presenter" }) {
                     window.toggleFullScreen(nil)
