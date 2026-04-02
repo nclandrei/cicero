@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(Presentation.self) private var presentation
     @State private var selectedTheme: AppTheme = .auto
     @State private var showOverview = false
+    @State private var toastMessage: String?
     @State private var autoSaveTask: Task<Void, Never>?
     @State private var checkpointTask: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
@@ -34,7 +35,8 @@ struct ContentView: View {
         .toolbar {
             ToolbarView(
                 selectedTheme: $selectedTheme,
-                showOverview: $showOverview
+                showOverview: $showOverview,
+                toastMessage: $toastMessage
             )
         }
         .sheet(isPresented: $showOverview) {
@@ -42,6 +44,27 @@ struct ContentView: View {
                 .frame(minWidth: 800, minHeight: 500)
         }
         .navigationTitle(presentation.metadata.title ?? "Cicero")
+        .overlay(alignment: .bottom) {
+            if let message = toastMessage {
+                Text(message)
+                    .font(.system(.body, design: .rounded).weight(.medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                toastMessage = nil
+                            }
+                        }
+                    }
+            }
+        }
+        .animation(.spring(duration: 0.4), value: toastMessage)
         .onChange(of: presentation.isDirty) { _, isDirty in
             if isDirty {
                 scheduleAutoSave()

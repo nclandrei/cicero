@@ -7,6 +7,7 @@ struct ToolbarView: ToolbarContent {
     @Environment(\.gitHubAuth) private var auth
     @Binding var selectedTheme: AppTheme
     @Binding var showOverview: Bool
+    @Binding var toastMessage: String?
     @State private var isPublishing = false
     @State private var publishResult: String?
     @State private var isExportingPDF = false
@@ -100,7 +101,7 @@ struct ToolbarView: ToolbarContent {
                 Button(action: {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(url, forType: .string)
-                    publishResult = "URL copied"
+                    toastMessage = "URL copied to clipboard"
                 }) {
                     Image(systemName: "doc.on.doc")
                 }
@@ -202,6 +203,7 @@ struct ToolbarView: ToolbarContent {
 
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(ciceroURL, forType: .string)
+                    toastMessage = "URL copied to clipboard"
                 }
             } catch {
                 await MainActor.run {
