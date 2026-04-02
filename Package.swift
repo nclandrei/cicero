@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .executable(name: "Cicero", targets: ["Cicero"]),
         .executable(name: "CiceroMCP", targets: ["CiceroMCP"]),
+        .executable(name: "Proctor", targets: ["Proctor"]),
     ],
     dependencies: [
         .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.0"),
@@ -31,6 +32,11 @@ let package = Package(
             resources: [
                 .copy("Resources/AppIcon.icns"),
             ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "Proctor",
+            dependencies: ["Shared"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(

@@ -2,22 +2,65 @@ import AppKit
 import SwiftUI
 import MarkdownUI
 
+/// Video file extensions detected for inline `![video](path)` syntax.
+private let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm", "avi"]
+
 /// Custom MarkdownUI image provider that resolves local `assets/` paths and supports width metadata.
 ///
 /// Width is encoded in the URL fragment: `![alt](assets/img.png#w=400)`
 /// In interactive mode, images show resize handles on hover.
+///
+/// Also handles inline video and web embeds:
+/// - `![video](assets/demo.mp4)` — detected by file extension → InlineVideoPlayerView
+/// - `![embed](https://example.com)` — "embed" alt text → InlineWebEmbedView
 struct CiceroImageProvider: ImageProvider {
     let baseDirectory: URL?
     let isInteractive: Bool
     let onResize: ((String, CGFloat) -> Void)?
 
     func makeImage(url: URL?) -> some View {
-        CiceroImageView(
+        CiceroImageRouter(
             url: url,
             baseDirectory: baseDirectory,
             isInteractive: isInteractive,
             onResize: onResize
         )
+    }
+}
+
+/// Routes markdown image URLs to the appropriate view: video player, web embed, or image.
+private struct CiceroImageRouter: View {
+    let url: URL?
+    let baseDirectory: URL?
+    let isInteractive: Bool
+    let onResize: ((String, CGFloat) -> Void)?
+
+    var body: some View {
+        if let url, isVideoURL(url) {
+            InlineVideoPlayerView(url: url, baseDirectory: baseDirectory)
+        } else if let url, isEmbedURL(url) {
+            InlineWebEmbedView(url: url)
+        } else {
+            CiceroImageView(
+                url: url,
+                baseDirectory: baseDirectory,
+                isInteractive: isInteractive,
+                onResize: onResize
+            )
+        }
+    }
+
+    private func isVideoURL(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return videoExtensions.contains(ext)
+    }
+
+    private func isEmbedURL(_ url: URL) -> Bool {
+        // MarkdownUI passes the alt text via the fragment as #embed
+        if let fragment = url.fragment, fragment.contains("embed") {
+            return true
+        }
+        return false
     }
 }
 

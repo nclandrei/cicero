@@ -16,6 +16,7 @@ struct ContentView: View {
             SlideView(
                 slide: presentation.currentSlide,
                 theme: effectiveTheme,
+                fontFamily: presentation.metadata.font,
                 baseDirectory: presentation.filePath?.deletingLastPathComponent(),
                 isInteractive: true,
                 onImageResize: { sourcePath, newWidth in

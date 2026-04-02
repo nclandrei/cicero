@@ -6,6 +6,8 @@ public enum SlideLayout: String, Codable, Sendable {
     case twoColumn = "two-column"
     case imageLeft = "image-left"
     case imageRight = "image-right"
+    case video = "video"
+    case embed = "embed"
 }
 
 public struct Slide: Codable, Identifiable, Sendable {
@@ -16,6 +18,8 @@ public struct Slide: Codable, Identifiable, Sendable {
     public var body: String
     public var layout: SlideLayout
     public var imageURL: String?
+    public var videoURL: String?
+    public var embedURL: String?
 
     public init(id: Int, content: String) {
         let parsed = SlideParser.parseSlideMetadata(content)
@@ -24,14 +28,18 @@ public struct Slide: Codable, Identifiable, Sendable {
         self.body = parsed.body
         self.layout = parsed.layout
         self.imageURL = parsed.imageURL
+        self.videoURL = parsed.videoURL
+        self.embedURL = parsed.embedURL
     }
 
-    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?) {
+    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?, videoURL: String? = nil, embedURL: String? = nil) {
         self.id = id
         self.content = content
         self.body = body
         self.layout = layout
         self.imageURL = imageURL
+        self.videoURL = videoURL
+        self.embedURL = embedURL
     }
 
     public var title: String? {
@@ -58,6 +66,7 @@ public struct PresentationMetadata: Codable, Sendable {
     public var themeAccent: String?
     public var themeCodeBackground: String?
     public var themeCodeText: String?
+    public var font: String?
 
     public init(
         title: String? = nil,
@@ -69,7 +78,8 @@ public struct PresentationMetadata: Codable, Sendable {
         themeHeading: String? = nil,
         themeAccent: String? = nil,
         themeCodeBackground: String? = nil,
-        themeCodeText: String? = nil
+        themeCodeText: String? = nil,
+        font: String? = nil
     ) {
         self.title = title
         self.theme = theme
@@ -81,6 +91,7 @@ public struct PresentationMetadata: Codable, Sendable {
         self.themeAccent = themeAccent
         self.themeCodeBackground = themeCodeBackground
         self.themeCodeText = themeCodeText
+        self.font = font
     }
 
     /// Resolve theme from metadata: named built-in, custom inline, or nil
@@ -108,13 +119,17 @@ public enum SlideParser {
         public let body: String
         public let layout: SlideLayout
         public let imageURL: String?
+        public let videoURL: String?
+        public let embedURL: String?
     }
 
-    /// Parse per-slide frontmatter (layout:, image:) from the top of slide content.
+    /// Parse per-slide frontmatter (layout:, image:, video:, embed:) from the top of slide content.
     /// Lines like `layout: title` and `image: url` at the very top are consumed.
     public static func parseSlideMetadata(_ content: String) -> SlideMetadata {
         var layout: SlideLayout = .default
         var imageURL: String? = nil
+        var videoURL: String? = nil
+        var embedURL: String? = nil
         var bodyLines: [String] = []
         var inFrontmatter = true
 
@@ -136,6 +151,12 @@ public enum SlideParser {
                     case "image":
                         imageURL = value
                         continue
+                    case "video":
+                        videoURL = value
+                        continue
+                    case "embed":
+                        embedURL = value
+                        continue
                     default:
                         // Not a recognized frontmatter key — treat as body
                         inFrontmatter = false
@@ -148,7 +169,7 @@ public enum SlideParser {
         }
 
         let body = bodyLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        return SlideMetadata(body: body, layout: layout, imageURL: imageURL)
+        return SlideMetadata(body: body, layout: layout, imageURL: imageURL, videoURL: videoURL, embedURL: embedURL)
     }
 
     public static func parse(_ markdown: String) -> (metadata: PresentationMetadata, slides: [Slide]) {
@@ -191,6 +212,7 @@ public enum SlideParser {
         if let v = metadata.themeAccent { fm.append("theme_accent: \(v)") }
         if let v = metadata.themeCodeBackground { fm.append("theme_code_background: \(v)") }
         if let v = metadata.themeCodeText { fm.append("theme_code_text: \(v)") }
+        if let f = metadata.font { fm.append("font: \(f)") }
         if !fm.isEmpty {
             parts.append("---\n\(fm.joined(separator: "\n"))\n---")
         }
@@ -222,6 +244,7 @@ public enum SlideParser {
             case "theme_accent": meta.themeAccent = value
             case "theme_code_background": meta.themeCodeBackground = value
             case "theme_code_text": meta.themeCodeText = value
+            case "font": meta.font = value
             default: break
             }
         }

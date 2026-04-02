@@ -64,4 +64,37 @@ struct APIModelTests {
         #expect(decoded.name == "dracula")
         #expect(decoded.background == nil)
     }
+
+    @Test("SlideInfo with video and embed URLs")
+    func slideInfoWithVideoEmbed() throws {
+        let info = SlideInfo(
+            index: 0,
+            title: "Demo",
+            content: "layout: video\nvideo: assets/demo.mp4\n# Demo",
+            layout: "video",
+            imageURL: nil,
+            videoURL: "assets/demo.mp4",
+            embedURL: nil
+        )
+        let data = try JSONEncoder().encode(info)
+        let decoded = try JSONDecoder().decode(SlideInfo.self, from: data)
+        #expect(decoded.videoURL == "assets/demo.mp4")
+        #expect(decoded.embedURL == nil)
+        #expect(decoded.layout == "video")
+
+        // Also test embed
+        let embedInfo = SlideInfo(
+            index: 1,
+            title: "Web",
+            content: "layout: embed\nembed: https://example.com",
+            layout: "embed",
+            imageURL: nil,
+            videoURL: nil,
+            embedURL: "https://example.com"
+        )
+        let embedData = try JSONEncoder().encode(embedInfo)
+        let embedDecoded = try JSONDecoder().decode(SlideInfo.self, from: embedData)
+        #expect(embedDecoded.embedURL == "https://example.com")
+        #expect(embedDecoded.videoURL == nil)
+    }
 }

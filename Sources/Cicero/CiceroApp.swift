@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 @main
 struct CiceroApp: App {
@@ -112,6 +113,21 @@ struct CiceroApp: App {
                     }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Button("Export HTML...") {
+                    let panel = NSSavePanel()
+                    panel.allowedContentTypes = [.html]
+                    panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".html"
+                    if panel.runModal() == .OK, let url = panel.url {
+                        let html = HTMLExportService.exportHTML(
+                            metadata: presentation.metadata,
+                            slides: presentation.slides,
+                            theme: presentation.resolvedTheme
+                        )
+                        try? html.write(to: url, atomically: true, encoding: .utf8)
+                    }
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option])
 
                 Divider()
 

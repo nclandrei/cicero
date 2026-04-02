@@ -121,7 +121,7 @@ struct MCPIntegrationTests {
             "screenshot_slide", "all_thumbnails",
             "start_presentation", "stop_presentation",
             "get_status", "open_file", "create_presentation",
-            "auth_status", "publish_gist", "export_pdf", "add_image",
+            "auth_status", "publish_gist", "export_pdf", "export_html", "add_image",
             "list_themes", "get_theme", "set_theme",
         ]
 
@@ -410,6 +410,21 @@ struct MCPIntegrationTests {
 
         // Brief pause for mode change
         Thread.sleep(forTimeInterval: 0.5)
+    }
+
+    @Test("Export HTML: returns valid HTML with reveal.js")
+    func testExportHTML() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        let response = try Self.client.callTool(name: "export_html")
+        let text = try Self.client.extractText(from: response)
+
+        #expect(text.contains("HTML exported successfully"), "Expected export confirmation, got: \(text)")
+        #expect(text.contains("7 slides"), "Expected 7 slides in export")
+        #expect(text.contains("<!DOCTYPE html>"), "Expected HTML doctype in output")
+        #expect(text.contains("reveal.js"), "Expected reveal.js reference in output")
     }
 
     // MARK: - Helpers

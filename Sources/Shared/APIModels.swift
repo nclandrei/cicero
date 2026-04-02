@@ -8,13 +8,17 @@ public struct SlideInfo: Codable, Sendable {
     public let content: String
     public let layout: String?
     public let imageURL: String?
+    public let videoURL: String?
+    public let embedURL: String?
 
-    public init(index: Int, title: String?, content: String, layout: String? = nil, imageURL: String? = nil) {
+    public init(index: Int, title: String?, content: String, layout: String? = nil, imageURL: String? = nil, videoURL: String? = nil, embedURL: String? = nil) {
         self.index = index
         self.title = title
         self.content = content
         self.layout = layout
         self.imageURL = imageURL
+        self.videoURL = videoURL
+        self.embedURL = embedURL
     }
 }
 
@@ -113,6 +117,16 @@ public struct ExportPDFResponse: Codable, Sendable {
     public init(base64PDF: String, pageCount: Int) {
         self.base64PDF = base64PDF
         self.pageCount = pageCount
+    }
+}
+
+public struct ExportHTMLResponse: Codable, Sendable {
+    public let html: String
+    public let slideCount: Int
+
+    public init(html: String, slideCount: Int) {
+        self.html = html
+        self.slideCount = slideCount
     }
 }
 

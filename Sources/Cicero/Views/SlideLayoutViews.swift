@@ -8,6 +8,7 @@ import Shared
 struct TitleLayoutView: View {
     let content: String
     let theme: SlideTheme
+    var fontFamily: String? = nil
     var baseDirectory: URL? = nil
     var isInteractive: Bool = false
     var onImageResize: ((String, CGFloat) -> Void)? = nil
@@ -16,7 +17,7 @@ struct TitleLayoutView: View {
         VStack {
             Spacer()
             Markdown(content)
-                .markdownTheme(theme.titleMarkdownTheme())
+                .markdownTheme(theme.titleMarkdownTheme(fontFamily: fontFamily))
                 .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                 .markdownImageProvider(.cicero(
                     baseDirectory: baseDirectory,
@@ -36,6 +37,7 @@ struct TitleLayoutView: View {
 struct TwoColumnLayoutView: View {
     let content: String
     let theme: SlideTheme
+    var fontFamily: String? = nil
     var baseDirectory: URL? = nil
     var isInteractive: Bool = false
     var onImageResize: ((String, CGFloat) -> Void)? = nil
@@ -45,7 +47,7 @@ struct TwoColumnLayoutView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let header = parts.header {
                 Markdown(header)
-                    .markdownTheme(theme.markdownTheme())
+                    .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
                     .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                     .markdownImageProvider(.cicero(
                         baseDirectory: baseDirectory,
@@ -60,7 +62,7 @@ struct TwoColumnLayoutView: View {
             HStack(alignment: .top, spacing: 0) {
                 ScrollView {
                     Markdown(parts.left)
-                        .markdownTheme(theme.markdownTheme())
+                        .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
                         .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                         .markdownImageProvider(.cicero(
                             baseDirectory: baseDirectory,
@@ -78,7 +80,7 @@ struct TwoColumnLayoutView: View {
 
                 ScrollView {
                     Markdown(parts.right)
-                        .markdownTheme(theme.markdownTheme())
+                        .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
                         .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                         .markdownImageProvider(.cicero(
                             baseDirectory: baseDirectory,
@@ -130,6 +132,7 @@ struct ImageSideLayoutView: View {
     let imageURL: String?
     let imageOnLeft: Bool
     let theme: SlideTheme
+    var fontFamily: String? = nil
     var baseDirectory: URL? = nil
     var isInteractive: Bool = false
     var onImageResize: ((String, CGFloat) -> Void)? = nil
@@ -185,7 +188,7 @@ struct ImageSideLayoutView: View {
     private var textSection: some View {
         ScrollView {
             Markdown(content)
-                .markdownTheme(theme.markdownTheme())
+                .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
                 .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                 .markdownImageProvider(.cicero(
                     baseDirectory: baseDirectory,

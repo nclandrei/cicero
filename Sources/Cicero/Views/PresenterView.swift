@@ -14,6 +14,7 @@ struct PresenterView: View {
                 SlideView(
                     slide: slide,
                     theme: presenterTheme,
+                    fontFamily: presentation.metadata.font,
                     baseDirectory: presentation.filePath?.deletingLastPathComponent()
                 )
                     .transition(.asymmetric(

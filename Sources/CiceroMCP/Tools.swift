@@ -26,7 +26,7 @@ enum CiceroTools {
         ),
         Tool(
             name: "set_slide",
-            description: "Update the content of a specific slide. Supports per-slide layout frontmatter at the top: 'layout: title|two-column|image-left|image-right' and 'image: URL'. Use '|||' to separate columns in two-column layout.",
+            description: "Update the content of a specific slide. Supports per-slide layout frontmatter at the top: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL' (for layout: video), 'embed: URL' (for layout: embed). Use '|||' to separate columns in two-column layout.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
@@ -38,7 +38,7 @@ enum CiceroTools {
         ),
         Tool(
             name: "add_slide",
-            description: "Add a new slide to the presentation. Supports per-slide layout frontmatter: 'layout: title|two-column|image-left|image-right' and 'image: URL' as first lines.",
+            description: "Add a new slide to the presentation. Supports per-slide layout frontmatter: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL', 'embed: URL' as first lines.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
@@ -222,6 +222,16 @@ enum CiceroTools {
                     "query": .object(["type": "string", "description": "Text to search for (case-insensitive)"]),
                 ]),
                 "required": .array([.string("query")]),
+            ])
+        ),
+        Tool(
+            name: "export_html",
+            description: "Export the current presentation as a self-contained HTML file using reveal.js. The HTML works in any browser with theming, layouts, code highlighting, and speaker notes.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "output_path": .object(["type": "string", "description": "Optional file path to write the HTML to. If omitted, returns the HTML content."]),
+                ]),
             ])
         ),
     ]
@@ -452,6 +462,15 @@ enum CiceroToolHandler {
                 text += "  …\(match.excerpt)…\n\n"
             }
             return textResult(text)
+
+        case "export_html":
+            let resp: ExportHTMLResponse = try await client.get("/export/html")
+            if let outputPath = arguments?["output_path"]?.stringValue, !outputPath.isEmpty {
+                let url = URL(fileURLWithPath: outputPath)
+                try resp.html.write(to: url, atomically: true, encoding: .utf8)
+                return textResult("HTML exported to \(outputPath) (\(resp.slideCount) slides).")
+            }
+            return textResult("HTML exported successfully (\(resp.slideCount) slides). HTML length: \(resp.html.count) characters.\n\n\(resp.html)")
 
         default:
             return .init(

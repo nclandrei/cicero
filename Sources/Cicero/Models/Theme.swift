@@ -68,16 +68,22 @@ struct SlideTheme {
     }
 
     /// Standard markdown theme for regular slides
-    func markdownTheme(splashTheme: Splash.Theme? = nil) -> MarkdownUI.Theme {
+    func markdownTheme(fontFamily: String? = nil) -> MarkdownUI.Theme {
         let st = self
         return .gitHub
             .text {
+                if let fontFamily {
+                    FontFamily(.custom(fontFamily))
+                }
                 ForegroundColor(st.text)
                 FontSize(22)
             }
             .heading1 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(44)
                         FontWeight(.bold)
                         ForegroundColor(st.heading)
@@ -87,6 +93,9 @@ struct SlideTheme {
             .heading2 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(34)
                         FontWeight(.semibold)
                         ForegroundColor(st.heading)
@@ -96,6 +105,9 @@ struct SlideTheme {
             .heading3 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(28)
                         FontWeight(.medium)
                         ForegroundColor(st.heading)
@@ -132,16 +144,22 @@ struct SlideTheme {
     }
 
     /// Larger heading theme for title layout slides
-    func titleMarkdownTheme(splashTheme: Splash.Theme? = nil) -> MarkdownUI.Theme {
+    func titleMarkdownTheme(fontFamily: String? = nil) -> MarkdownUI.Theme {
         let st = self
         return .gitHub
             .text {
+                if let fontFamily {
+                    FontFamily(.custom(fontFamily))
+                }
                 ForegroundColor(st.text)
                 FontSize(26)
             }
             .heading1 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(56)
                         FontWeight(.bold)
                         ForegroundColor(st.heading)
@@ -151,6 +169,9 @@ struct SlideTheme {
             .heading2 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(40)
                         FontWeight(.semibold)
                         ForegroundColor(st.heading)
@@ -160,6 +181,9 @@ struct SlideTheme {
             .heading3 { configuration in
                 configuration.label
                     .markdownTextStyle {
+                        if let fontFamily {
+                            FontFamily(.custom(fontFamily))
+                        }
                         FontSize(32)
                         FontWeight(.medium)
                         ForegroundColor(st.heading)

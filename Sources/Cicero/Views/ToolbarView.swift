@@ -91,6 +91,11 @@ struct ToolbarView: ToolbarContent {
             .disabled(isExportingPDF)
             .help("Export PDF")
 
+            Button(action: exportHTML) {
+                Image(systemName: "globe")
+            }
+            .help("Export HTML")
+
             if let url = publishedURL {
                 Button(action: {
                     NSPasteboard.general.clearContents()
@@ -141,6 +146,20 @@ struct ToolbarView: ToolbarContent {
             try? pdfData.write(to: url)
         }
         isExportingPDF = false
+    }
+
+    private func exportHTML() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.html]
+        panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".html"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let html = HTMLExportService.exportHTML(
+            metadata: presentation.metadata,
+            slides: presentation.slides,
+            theme: presentation.resolvedTheme
+        )
+        try? html.write(to: url, atomically: true, encoding: .utf8)
     }
 
     private func publishGist() {

@@ -59,7 +59,9 @@ final class LocalServer {
                             title: $0.title,
                             content: $0.content,
                             layout: $0.layout == .default ? nil : $0.layout.rawValue,
-                            imageURL: $0.imageURL
+                            imageURL: $0.imageURL,
+                            videoURL: $0.videoURL,
+                            embedURL: $0.embedURL
                         )
                     },
                     currentIndex: self.presentation.currentIndex
@@ -83,7 +85,9 @@ final class LocalServer {
                     title: slide.title,
                     content: slide.content,
                     layout: slide.layout == .default ? nil : slide.layout.rawValue,
-                    imageURL: slide.imageURL
+                    imageURL: slide.imageURL,
+                    videoURL: slide.videoURL,
+                    embedURL: slide.embedURL
                 ))
             }
         }
@@ -279,6 +283,22 @@ final class LocalServer {
                 )
             }
             guard let result else { return self.jsonError("Failed to export PDF") }
+            return self.jsonResponse(result)
+        }
+
+        server.GET["/export/html"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let result = self.onMain { () -> ExportHTMLResponse? in
+                let slides = self.presentation.slides
+                guard !slides.isEmpty else { return nil }
+                let html = HTMLExportService.exportHTML(
+                    metadata: self.presentation.metadata,
+                    slides: slides,
+                    theme: self.presentation.resolvedTheme
+                )
+                return ExportHTMLResponse(html: html, slideCount: slides.count)
+            }
+            guard let result else { return self.jsonError("Failed to export HTML") }
             return self.jsonResponse(result)
         }
 

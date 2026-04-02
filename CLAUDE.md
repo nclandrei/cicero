@@ -35,6 +35,7 @@ swift run CiceroMCP            # Run MCP server (needs running app)
 ## HTTP API Endpoints
 
 GET /status, /slides, /slides/:n, /current, /screenshot, /screenshot/:n, /thumbnails
+GET /export/pdf, /export/html
 POST /slides, /navigate, /presentation/start, /presentation/stop, /open, /create
 PUT /slides/:n
 DELETE /slides/:n

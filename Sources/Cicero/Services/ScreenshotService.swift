@@ -36,7 +36,7 @@ final class ScreenshotService {
     @MainActor
     private func renderViaHostingView(slide: Slide, theme: SlideTheme, size: CGSize) -> Data? {
         let baseDir = presentation.filePath?.deletingLastPathComponent()
-        let view = ScreenshotSlideView(slide: slide, theme: theme, baseDirectory: baseDir)
+        let view = ScreenshotSlideView(slide: slide, theme: theme, fontFamily: presentation.metadata.font, baseDirectory: baseDir)
             .frame(width: size.width, height: size.height)
 
         let hostingView = NSHostingView(rootView: view)
@@ -57,6 +57,7 @@ final class ScreenshotService {
 private struct ScreenshotSlideView: View {
     let slide: Slide
     let theme: SlideTheme
+    var fontFamily: String? = nil
     let baseDirectory: URL?
 
     var body: some View {
@@ -70,17 +71,21 @@ private struct ScreenshotSlideView: View {
     private var slideContent: some View {
         switch slide.layout {
         case .title:
-            TitleLayoutView(content: slide.body, theme: theme, baseDirectory: baseDirectory)
+            TitleLayoutView(content: slide.body, theme: theme, fontFamily: fontFamily, baseDirectory: baseDirectory)
         case .twoColumn:
-            TwoColumnLayoutView(content: slide.body, theme: theme, baseDirectory: baseDirectory)
+            TwoColumnLayoutView(content: slide.body, theme: theme, fontFamily: fontFamily, baseDirectory: baseDirectory)
         case .imageLeft:
-            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: true, theme: theme, baseDirectory: baseDirectory)
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: true, theme: theme, fontFamily: fontFamily, baseDirectory: baseDirectory)
         case .imageRight:
-            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: false, theme: theme, baseDirectory: baseDirectory)
+            ImageSideLayoutView(content: slide.body, imageURL: slide.imageURL, imageOnLeft: false, theme: theme, fontFamily: fontFamily, baseDirectory: baseDirectory)
+        case .video:
+            VideoLayoutView(content: slide.body, videoURL: slide.videoURL, theme: theme, baseDirectory: baseDirectory)
+        case .embed:
+            EmbedLayoutView(content: slide.body, embedURL: slide.embedURL, theme: theme)
         case .default:
             ScrollView {
                 Markdown(slide.body)
-                    .markdownTheme(theme.markdownTheme())
+                    .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
                     .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                     .markdownImageProvider(.cicero(
                         baseDirectory: baseDirectory,
