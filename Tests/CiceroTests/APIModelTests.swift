@@ -97,4 +97,140 @@ struct APIModelTests {
         #expect(embedDecoded.embedURL == "https://example.com")
         #expect(embedDecoded.videoURL == nil)
     }
+
+    // MARK: - Font Models
+
+    @Test("FontResponse encodes/decodes with font name")
+    func fontResponseWithName() throws {
+        let resp = FontResponse(current: "Georgia", available: ["Georgia", "Helvetica", "Times New Roman"])
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(FontResponse.self, from: data)
+        #expect(decoded.current == "Georgia")
+        #expect(decoded.available.count == 3)
+        #expect(decoded.available.contains("Helvetica"))
+    }
+
+    @Test("FontResponse encodes/decodes with nil current")
+    func fontResponseNilCurrent() throws {
+        let resp = FontResponse(current: nil, available: ["Arial", "Verdana"])
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(FontResponse.self, from: data)
+        #expect(decoded.current == nil)
+        #expect(decoded.available.count == 2)
+    }
+
+    @Test("SetFontRequest encodes/decodes with name")
+    func setFontRequestWithName() throws {
+        let req = SetFontRequest(name: "Menlo")
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetFontRequest.self, from: data)
+        #expect(decoded.name == "Menlo")
+    }
+
+    @Test("SetFontRequest encodes/decodes without name")
+    func setFontRequestNoName() throws {
+        let req = SetFontRequest()
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetFontRequest.self, from: data)
+        #expect(decoded.name == nil)
+    }
+
+    // MARK: - Transition Models
+
+    @Test("TransitionResponse encodes/decodes")
+    func transitionResponse() throws {
+        let resp = TransitionResponse(current: "fade", available: ["none", "fade", "slide", "push"])
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(TransitionResponse.self, from: data)
+        #expect(decoded.current == "fade")
+        #expect(decoded.available.count == 4)
+        #expect(decoded.available.contains("none"))
+        #expect(decoded.available.contains("slide"))
+    }
+
+    @Test("SetTransitionRequest encodes/decodes")
+    func setTransitionRequest() throws {
+        let req = SetTransitionRequest(name: "push")
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetTransitionRequest.self, from: data)
+        #expect(decoded.name == "push")
+    }
+
+    // MARK: - Save Model
+
+    @Test("SaveResponse encodes/decodes success case")
+    func saveResponseSuccess() throws {
+        let resp = SaveResponse(success: true, filePath: "/tmp/presentation.md")
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(SaveResponse.self, from: data)
+        #expect(decoded.success == true)
+        #expect(decoded.filePath == "/tmp/presentation.md")
+    }
+
+    @Test("SaveResponse encodes/decodes failure case")
+    func saveResponseFailure() throws {
+        let resp = SaveResponse(success: false)
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(SaveResponse.self, from: data)
+        #expect(decoded.success == false)
+        #expect(decoded.filePath == nil)
+    }
+
+    // MARK: - Markdown Model
+
+    @Test("GetMarkdownResponse encodes/decodes with all fields")
+    func getMarkdownResponse() throws {
+        let resp = GetMarkdownResponse(
+            markdown: "# Title\n\nContent here",
+            filePath: "/tmp/deck.md",
+            isDirty: true
+        )
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(GetMarkdownResponse.self, from: data)
+        #expect(decoded.markdown == "# Title\n\nContent here")
+        #expect(decoded.filePath == "/tmp/deck.md")
+        #expect(decoded.isDirty == true)
+    }
+
+    @Test("GetMarkdownResponse defaults")
+    func getMarkdownResponseDefaults() throws {
+        let resp = GetMarkdownResponse(markdown: "# Slide")
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(GetMarkdownResponse.self, from: data)
+        #expect(decoded.markdown == "# Slide")
+        #expect(decoded.filePath == nil)
+        #expect(decoded.isDirty == false)
+    }
+
+    // MARK: - StatusResponse with new fields
+
+    @Test("StatusResponse with author, font, transition fields")
+    func statusResponseAllFields() throws {
+        let resp = StatusResponse(
+            currentSlide: 2, totalSlides: 10, presenting: true,
+            filePath: "/tmp/test.md", title: "My Deck",
+            theme: "dark", author: "Test Author",
+            font: "Georgia", transition: "fade"
+        )
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
+        #expect(decoded.author == "Test Author")
+        #expect(decoded.font == "Georgia")
+        #expect(decoded.transition == "fade")
+        #expect(decoded.theme == "dark")
+    }
+
+    @Test("StatusResponse backward compat: new fields nil when not provided")
+    func statusResponseNewFieldsNil() throws {
+        let resp = StatusResponse(
+            currentSlide: 0, totalSlides: 1, presenting: false,
+            filePath: nil, title: "Minimal"
+        )
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
+        #expect(decoded.author == nil)
+        #expect(decoded.font == nil)
+        #expect(decoded.transition == nil)
+        #expect(decoded.theme == nil)
+    }
 }

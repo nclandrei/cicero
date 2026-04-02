@@ -123,6 +123,9 @@ struct MCPIntegrationTests {
             "get_status", "open_file", "create_presentation",
             "auth_status", "publish_gist", "export_pdf", "export_html", "add_image",
             "list_themes", "get_theme", "set_theme",
+            "reorder_slide", "undo", "redo", "search_slides",
+            "get_font", "set_font", "get_transition", "set_transition",
+            "save_file", "get_markdown",
         ]
 
         let toolNames = Set(tools.compactMap { $0["name"] as? String })
@@ -425,6 +428,106 @@ struct MCPIntegrationTests {
         #expect(text.contains("7 slides"), "Expected 7 slides in export")
         #expect(text.contains("<!DOCTYPE html>"), "Expected HTML doctype in output")
         #expect(text.contains("reveal.js"), "Expected reveal.js reference in output")
+    }
+
+    @Test("Font operations: get and set font")
+    func testFontOperations() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get font — should list available fonts
+        let getResponse = try Self.client.callTool(name: "get_font")
+        let getText = try Self.client.extractText(from: getResponse)
+        #expect(getText.lowercased().contains("available"), "Expected available fonts list, got: \(getText)")
+
+        // Set font to Georgia
+        let setResponse = try Self.client.callTool(
+            name: "set_font",
+            arguments: ["name": "Georgia"]
+        )
+        let setText = try Self.client.extractText(from: setResponse)
+        #expect(setText.contains("Georgia"), "Expected Georgia in response, got: \(setText)")
+
+        // Get font again — verify it's Georgia
+        let getResponse2 = try Self.client.callTool(name: "get_font")
+        let getText2 = try Self.client.extractText(from: getResponse2)
+        #expect(getText2.contains("Georgia"), "Expected current font Georgia, got: \(getText2)")
+
+        // Reset to system default (no name arg)
+        let resetResponse = try Self.client.callTool(
+            name: "set_font",
+            arguments: [:]
+        )
+        let resetText = try Self.client.extractText(from: resetResponse)
+        #expect(!Self.client.isErrorResult(resetResponse), "Reset font returned error: \(resetText)")
+    }
+
+    @Test("Transition operations: get and set transition")
+    func testTransitionOperations() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get transition — should list available types
+        let getResponse = try Self.client.callTool(name: "get_transition")
+        let getText = try Self.client.extractText(from: getResponse)
+        #expect(getText.contains("none"), "Expected 'none' in available transitions, got: \(getText)")
+        #expect(getText.contains("fade"), "Expected 'fade' in available transitions, got: \(getText)")
+        #expect(getText.contains("slide"), "Expected 'slide' in available transitions, got: \(getText)")
+        #expect(getText.contains("push"), "Expected 'push' in available transitions, got: \(getText)")
+
+        // Set transition to fade
+        let setResponse = try Self.client.callTool(
+            name: "set_transition",
+            arguments: ["name": "fade"]
+        )
+        let setText = try Self.client.extractText(from: setResponse)
+        #expect(setText.contains("fade"), "Expected fade in response, got: \(setText)")
+
+        // Get transition — verify it's fade
+        let getResponse2 = try Self.client.callTool(name: "get_transition")
+        let getText2 = try Self.client.extractText(from: getResponse2)
+        #expect(getText2.contains("fade"), "Expected current transition fade, got: \(getText2)")
+
+        // Reset to none
+        _ = try Self.client.callTool(
+            name: "set_transition",
+            arguments: ["name": "none"]
+        )
+    }
+
+    @Test("Get markdown: full document with frontmatter")
+    func testGetMarkdown() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        let response = try Self.client.callTool(name: "get_markdown")
+        let text = try Self.client.extractText(from: response)
+
+        // Verify it contains frontmatter markers
+        #expect(text.contains("---"), "Expected frontmatter markers (---) in markdown, got: \(text)")
+        // Verify it contains the title from metadata
+        #expect(text.contains("Integration Test Deck"), "Expected title in markdown, got: \(text)")
+        // Verify it contains slide content
+        #expect(text.contains("Title Slide"), "Expected slide content in markdown, got: \(text)")
+    }
+
+    @Test("Status includes metadata fields")
+    func testStatusMetadata() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        let response = try Self.client.callTool(name: "get_status")
+        let text = try Self.client.extractText(from: response)
+
+        // The test presentation has author: "Test Suite", theme: "dark"
+        #expect(text.contains("Test Suite") || text.contains("Author"),
+                "Expected author info in status, got: \(text)")
+        #expect(text.contains("dark") || text.contains("Theme"),
+                "Expected theme info in status, got: \(text)")
     }
 
     // MARK: - Helpers

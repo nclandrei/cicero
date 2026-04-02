@@ -50,6 +50,30 @@ public enum PresentationValidator {
             }
         }
 
+        // Validate transition
+        if let transitionRaw = metadata.transition?.rawValue {
+            // Already parsed fine if we got here — but check raw frontmatter
+            _ = transitionRaw
+        } else if content.contains("transition:") {
+            // If frontmatter had a transition field but it didn't parse, it's invalid
+            let lines = content.components(separatedBy: "\n")
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.lowercased().hasPrefix("transition:") {
+                    let value = trimmed.split(separator: ":", maxSplits: 1).last?
+                        .trimmingCharacters(in: .whitespaces) ?? ""
+                    if PresentationTransition(rawValue: value) == nil && !value.isEmpty {
+                        let valid = PresentationTransition.allCases.map(\.rawValue).joined(separator: ", ")
+                        errors.append(ValidationError(
+                            message: "Unknown transition '\(value)' (valid: \(valid))",
+                            isWarning: true
+                        ))
+                    }
+                    break
+                }
+            }
+        }
+
         // Validate theme colors
         let colorFields: [(String, String?)] = [
             ("theme_background", metadata.themeBackground),

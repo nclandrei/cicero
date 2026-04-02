@@ -204,6 +204,47 @@ enum CiceroTools {
             ])
         ),
         Tool(
+            name: "get_font",
+            description: "Get the current font and list of available font families",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "set_font",
+            description: "Set the presentation font family. Omit or pass null for system default.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "name": .object(["type": "string", "description": "Font family name (e.g. 'Georgia', 'SF Mono'). Omit for system default."]),
+                ]),
+            ])
+        ),
+        Tool(
+            name: "get_transition",
+            description: "Get the current slide transition and list of available transition types",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "set_transition",
+            description: "Set the slide transition type used in presentation mode",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "name": .object(["type": "string", "description": "Transition type: none, fade, slide, or push"]),
+                ]),
+                "required": .array([.string("name")]),
+            ])
+        ),
+        Tool(
+            name: "save_file",
+            description: "Save the current presentation to disk. Requires a file path (opened or previously saved).",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
+            name: "get_markdown",
+            description: "Get the full raw markdown of the presentation including YAML frontmatter, all slides, and separators",
+            inputSchema: .object(["type": "object", "properties": .object([:])])
+        ),
+        Tool(
             name: "undo",
             description: "Undo the last edit to the presentation",
             inputSchema: .object(["type": "object", "properties": .object([:])])
@@ -351,7 +392,11 @@ enum CiceroToolHandler {
             text += "  Slide: \(resp.currentSlide + 1) of \(resp.totalSlides)\n"
             text += "  Presenting: \(resp.presenting)\n"
             if let title = resp.title { text += "  Title: \(title)\n" }
+            if let author = resp.author { text += "  Author: \(author)\n" }
             if let path = resp.filePath { text += "  File: \(path)\n" }
+            if let theme = resp.theme { text += "  Theme: \(theme)\n" }
+            if let font = resp.font { text += "  Font: \(font)\n" }
+            if let transition = resp.transition { text += "  Transition: \(transition)\n" }
             return textResult(text)
 
         case "open_file":
@@ -431,6 +476,49 @@ enum CiceroToolHandler {
             )
             let resp: ThemeResponse = try await client.put("/theme", body: req)
             return textResult("Theme set to: \(resp.current ?? "auto")")
+
+        case "get_font":
+            let resp: FontResponse = try await client.get("/font")
+            var text = "Current font: \(resp.current ?? "System Default")\n\nAvailable fonts:\n"
+            for f in resp.available {
+                text += "  \(f)\n"
+            }
+            return textResult(text)
+
+        case "set_font":
+            let name = arguments?["name"]?.stringValue
+            let req = SetFontRequest(name: name)
+            let resp: FontResponse = try await client.put("/font", body: req)
+            return textResult("Font set to: \(resp.current ?? "System Default")")
+
+        case "get_transition":
+            let resp: TransitionResponse = try await client.get("/transition")
+            var text = "Current transition: \(resp.current)\n\nAvailable transitions:\n"
+            for t in resp.available {
+                text += "  \(t)\n"
+            }
+            return textResult(text)
+
+        case "set_transition":
+            let name = arguments?["name"]?.stringValue ?? "none"
+            let req = SetTransitionRequest(name: name)
+            let resp: TransitionResponse = try await client.put("/transition", body: req)
+            return textResult("Transition set to: \(resp.current)")
+
+        case "save_file":
+            let resp: SaveResponse = try await client.postEmpty("/save")
+            if resp.success {
+                return textResult("Saved to \(resp.filePath ?? "(in memory)")")
+            } else {
+                return textResult("No file path set. Open or create a file first.")
+            }
+
+        case "get_markdown":
+            let resp: GetMarkdownResponse = try await client.get("/markdown")
+            var text = "File: \(resp.filePath ?? "(unsaved)")\n"
+            text += "Dirty: \(resp.isDirty)\n\n"
+            text += resp.markdown
+            return textResult(text)
 
         case "undo":
             let resp: UndoRedoResponse = try await client.postEmpty("/undo")

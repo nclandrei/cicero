@@ -41,14 +41,20 @@ public struct StatusResponse: Codable, Sendable {
     public let filePath: String?
     public let title: String?
     public let theme: String?
+    public let author: String?
+    public let font: String?
+    public let transition: String?
 
-    public init(currentSlide: Int, totalSlides: Int, presenting: Bool, filePath: String?, title: String?, theme: String? = nil) {
+    public init(currentSlide: Int, totalSlides: Int, presenting: Bool, filePath: String?, title: String?, theme: String? = nil, author: String? = nil, font: String? = nil, transition: String? = nil) {
         self.currentSlide = currentSlide
         self.totalSlides = totalSlides
         self.presenting = presenting
         self.filePath = filePath
         self.title = title
         self.theme = theme
+        self.author = author
+        self.font = font
+        self.transition = transition
     }
 }
 
@@ -309,5 +315,71 @@ public struct SetThemeRequest: Codable, Sendable {
         self.accent = accent
         self.codeBackground = codeBackground
         self.codeText = codeText
+    }
+}
+
+// MARK: - Font Models
+
+public struct FontResponse: Codable, Sendable {
+    public let current: String?
+    public let available: [String]
+
+    public init(current: String?, available: [String]) {
+        self.current = current
+        self.available = available
+    }
+}
+
+public struct SetFontRequest: Codable, Sendable {
+    public let name: String?
+
+    public init(name: String? = nil) {
+        self.name = name
+    }
+}
+
+// MARK: - Transition Models
+
+public struct TransitionResponse: Codable, Sendable {
+    public let current: String
+    public let available: [String]
+
+    public init(current: String, available: [String]) {
+        self.current = current
+        self.available = available
+    }
+}
+
+public struct SetTransitionRequest: Codable, Sendable {
+    public let name: String
+
+    public init(name: String) {
+        self.name = name
+    }
+}
+
+// MARK: - Save Model
+
+public struct SaveResponse: Codable, Sendable {
+    public let success: Bool
+    public let filePath: String?
+
+    public init(success: Bool, filePath: String? = nil) {
+        self.success = success
+        self.filePath = filePath
+    }
+}
+
+// MARK: - Markdown Model
+
+public struct GetMarkdownResponse: Codable, Sendable {
+    public let markdown: String
+    public let filePath: String?
+    public let isDirty: Bool
+
+    public init(markdown: String, filePath: String? = nil, isDirty: Bool = false) {
+        self.markdown = markdown
+        self.filePath = filePath
+        self.isDirty = isDirty
     }
 }

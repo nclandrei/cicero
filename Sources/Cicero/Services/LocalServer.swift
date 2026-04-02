@@ -42,7 +42,10 @@ final class LocalServer {
                     presenting: self.presentation.isPresenting,
                     filePath: self.presentation.filePath?.path,
                     title: self.presentation.metadata.title,
-                    theme: self.presentation.metadata.theme
+                    theme: self.presentation.metadata.theme,
+                    author: self.presentation.metadata.author,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
                 )
             }
             return self.jsonResponse(resp)
@@ -383,6 +386,101 @@ final class LocalServer {
                 ThemeResponse(
                     current: self.presentation.metadata.theme,
                     definition: self.presentation.resolvedTheme
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        // MARK: - Font
+
+        server.GET["/font"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                FontResponse(
+                    current: self.presentation.metadata.font,
+                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.PUT["/font"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            let body: SetFontRequest? = self.decodeBody(request)
+            self.onMain {
+                self.presentation.setFont(body?.name)
+            }
+            let resp = self.onMain {
+                FontResponse(
+                    current: self.presentation.metadata.font,
+                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        // MARK: - Transition
+
+        server.GET["/transition"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                TransitionResponse(
+                    current: (self.presentation.metadata.transition ?? .none).rawValue,
+                    available: PresentationTransition.allCases.map(\.rawValue)
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.PUT["/transition"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SetTransitionRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"name\": \"fade|slide|push|none\"}")
+            }
+            guard let transition = PresentationTransition(rawValue: body.name) else {
+                let valid = PresentationTransition.allCases.map(\.rawValue).joined(separator: ", ")
+                return self.jsonError("Unknown transition '\(body.name)'. Valid: \(valid)")
+            }
+            self.onMain {
+                self.presentation.metadata.transition = transition
+                // Rebuild markdown to persist transition in frontmatter
+                let markdown = SlideParser.serialize(metadata: self.presentation.metadata, slides: self.presentation.slides)
+                self.presentation.markdown = markdown
+                self.presentation.isDirty = true
+            }
+            let resp = self.onMain {
+                TransitionResponse(
+                    current: (self.presentation.metadata.transition ?? .none).rawValue,
+                    available: PresentationTransition.allCases.map(\.rawValue)
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        // MARK: - Save
+
+        server.POST["/save"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            do {
+                let filePath = try self.onMain { () -> String? in
+                    try self.presentation.save()
+                    return self.presentation.filePath?.path
+                }
+                return self.jsonResponse(SaveResponse(success: true, filePath: filePath))
+            } catch {
+                return self.jsonError("Failed to save: \(error.localizedDescription)")
+            }
+        }
+
+        // MARK: - Raw Markdown
+
+        server.GET["/markdown"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                GetMarkdownResponse(
+                    markdown: self.presentation.markdown,
+                    filePath: self.presentation.filePath?.path,
+                    isDirty: self.presentation.isDirty
                 )
             }
             return self.jsonResponse(resp)

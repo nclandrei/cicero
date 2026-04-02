@@ -73,6 +73,35 @@ struct ProctorTests {
         #expect(errors.contains { $0.message.contains("Unknown layout") })
     }
 
+    @Test("Invalid transition reports warning")
+    func testValidateInvalidTransition() throws {
+        let md = """
+        ---
+        transition: spinwobble
+        ---
+
+        # Hello
+        """
+        let path = try writeTempFile(md)
+        let errors = PresentationValidator.validate(at: path)
+        #expect(errors.contains { $0.message.contains("Unknown transition") })
+        #expect(errors.first { $0.message.contains("transition") }?.isWarning == true)
+    }
+
+    @Test("Valid transition produces no errors")
+    func testValidateValidTransition() throws {
+        let md = """
+        ---
+        transition: fade
+        ---
+
+        # Hello
+        """
+        let path = try writeTempFile(md)
+        let errors = PresentationValidator.validate(at: path)
+        #expect(errors.isEmpty)
+    }
+
     @Test("Missing file reports error")
     func testValidateMissingFile() {
         let errors = PresentationValidator.validate(at: "/tmp/nonexistent-\(UUID().uuidString).md")
