@@ -198,6 +198,38 @@ public struct PublishGistRequest: Codable, Sendable {
     }
 }
 
+// MARK: - Search Models
+
+public struct SearchRequest: Codable, Sendable {
+    public let query: String
+
+    public init(query: String) {
+        self.query = query
+    }
+}
+
+public struct SearchMatch: Codable, Sendable {
+    public let index: Int
+    public let title: String?
+    public let excerpt: String
+
+    public init(index: Int, title: String?, excerpt: String) {
+        self.index = index
+        self.title = title
+        self.excerpt = excerpt
+    }
+}
+
+public struct SearchResponse: Codable, Sendable {
+    public let query: String
+    public let matches: [SearchMatch]
+
+    public init(query: String, matches: [SearchMatch]) {
+        self.query = query
+        self.matches = matches
+    }
+}
+
 // MARK: - Theme Models
 
 public struct ThemeListResponse: Codable, Sendable {

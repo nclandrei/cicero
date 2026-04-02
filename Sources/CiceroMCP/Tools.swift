@@ -191,6 +191,17 @@ enum CiceroTools {
                 "required": .array([.string("name")]),
             ])
         ),
+        Tool(
+            name: "search_slides",
+            description: "Search across all slides for a text query. Returns matching slides with excerpts showing context around each match.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "query": .object(["type": "string", "description": "Text to search for (case-insensitive)"]),
+                ]),
+                "required": .array([.string("query")]),
+            ])
+        ),
     ]
 }
 
@@ -379,6 +390,21 @@ enum CiceroToolHandler {
             )
             let resp: ThemeResponse = try await client.put("/theme", body: req)
             return textResult("Theme set to: \(resp.current ?? "auto")")
+
+        case "search_slides":
+            let query = arguments?["query"]?.stringValue ?? ""
+            let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+            let resp: SearchResponse = try await client.get("/search?q=\(encoded)")
+            if resp.matches.isEmpty {
+                return textResult("No matches found for \"\(resp.query)\".")
+            }
+            var text = "Found \(resp.matches.count) match(es) for \"\(resp.query)\":\n\n"
+            for match in resp.matches {
+                let title = match.title ?? "(untitled)"
+                text += "[\(match.index + 1)] \(title)\n"
+                text += "  …\(match.excerpt)…\n\n"
+            }
+            return textResult(text)
 
         default:
             return .init(
