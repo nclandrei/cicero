@@ -1,5 +1,12 @@
 import Foundation
 
+public enum PresentationTransition: String, Codable, Sendable, CaseIterable {
+    case none = "none"
+    case fade = "fade"
+    case slide = "slide"
+    case push = "push"
+}
+
 public enum SlideLayout: String, Codable, Sendable {
     case `default` = "default"
     case title = "title"
@@ -67,6 +74,7 @@ public struct PresentationMetadata: Codable, Sendable {
     public var themeCodeBackground: String?
     public var themeCodeText: String?
     public var font: String?
+    public var transition: PresentationTransition?
 
     public init(
         title: String? = nil,
@@ -79,7 +87,8 @@ public struct PresentationMetadata: Codable, Sendable {
         themeAccent: String? = nil,
         themeCodeBackground: String? = nil,
         themeCodeText: String? = nil,
-        font: String? = nil
+        font: String? = nil,
+        transition: PresentationTransition? = nil
     ) {
         self.title = title
         self.theme = theme
@@ -92,6 +101,7 @@ public struct PresentationMetadata: Codable, Sendable {
         self.themeCodeBackground = themeCodeBackground
         self.themeCodeText = themeCodeText
         self.font = font
+        self.transition = transition
     }
 
     /// Resolve theme from metadata: named built-in, custom inline, or nil
@@ -213,6 +223,7 @@ public enum SlideParser {
         if let v = metadata.themeCodeBackground { fm.append("theme_code_background: \(v)") }
         if let v = metadata.themeCodeText { fm.append("theme_code_text: \(v)") }
         if let f = metadata.font { fm.append("font: \(f)") }
+        if let t = metadata.transition, t != .none { fm.append("transition: \(t.rawValue)") }
         if !fm.isEmpty {
             parts.append("---\n\(fm.joined(separator: "\n"))\n---")
         }
@@ -245,6 +256,7 @@ public enum SlideParser {
             case "theme_code_background": meta.themeCodeBackground = value
             case "theme_code_text": meta.themeCodeText = value
             case "font": meta.font = value
+            case "transition": meta.transition = PresentationTransition(rawValue: value)
             default: break
             }
         }

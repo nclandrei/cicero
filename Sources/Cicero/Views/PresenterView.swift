@@ -18,10 +18,7 @@ struct PresenterView: View {
                     fontFamily: presentation.metadata.font,
                     baseDirectory: presentation.filePath?.deletingLastPathComponent()
                 )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+                    .transition(slideTransition)
                     .id(presentation.currentIndex)
             }
 
@@ -30,12 +27,12 @@ struct PresenterView: View {
                 // Left half — previous
                 Color.clear
                     .contentShape(Rectangle())
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { presentation.previous() } }
+                    .onTapGesture { navigate { presentation.previous() } }
 
                 // Right half — next
                 Color.clear
                     .contentShape(Rectangle())
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { presentation.next() } }
+                    .onTapGesture { navigate { presentation.next() } }
             }
 
             // HUD overlay
@@ -87,15 +84,15 @@ struct PresenterView: View {
             presentation.stopTimer()
         }
         .onKeyPress(.leftArrow) {
-            withAnimation(.easeInOut(duration: 0.3)) { presentation.previous() }
+            navigate { presentation.previous() }
             return .handled
         }
         .onKeyPress(.rightArrow) {
-            withAnimation(.easeInOut(duration: 0.3)) { presentation.next() }
+            navigate { presentation.next() }
             return .handled
         }
         .onKeyPress(.space) {
-            withAnimation(.easeInOut(duration: 0.3)) { presentation.next() }
+            navigate { presentation.next() }
             return .handled
         }
         .onKeyPress(.escape) {
@@ -110,5 +107,39 @@ struct PresenterView: View {
             return SlideTheme(definition: resolved)
         }
         return .dark
+    }
+
+    private var effectiveTransition: PresentationTransition {
+        presentation.metadata.transition ?? .none
+    }
+
+    private var slideTransition: AnyTransition {
+        switch effectiveTransition {
+        case .none:
+            return .identity
+        case .fade:
+            return .opacity
+        case .slide:
+            return .asymmetric(
+                insertion: .move(edge: .trailing),
+                removal: .move(edge: .leading)
+            )
+        case .push:
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        }
+    }
+
+    private func navigate(_ action: () -> Void) {
+        switch effectiveTransition {
+        case .none:
+            action()
+        case .fade:
+            withAnimation(.easeInOut(duration: 0.25)) { action() }
+        case .slide, .push:
+            withAnimation(.easeInOut(duration: 0.3)) { action() }
+        }
     }
 }
