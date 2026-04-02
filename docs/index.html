@@ -15,7 +15,12 @@
   --text-muted: #8892a4;
   --accent: #7c83ff;
   --accent-dim: rgba(124, 131, 255, 0.15);
-  --slide-bg: #0f1729;
+  --slide-bg: #1a1a2e;
+  --slide-text: #ffffff;
+  --slide-heading: #ffffff;
+  --slide-accent: #6c63ff;
+  --slide-code-bg: #16213e;
+  --slide-code-text: #e2e8f0;
 }
 
 html, body {
@@ -125,22 +130,34 @@ html, body {
   flex-direction: column;
   justify-content: center;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  color: var(--slide-text);
 }
 
+/* Title layout */
+#slide.layout-title {
+  align-items: center;
+  text-align: center;
+  padding: 56px 100px;
+}
+#slide.layout-title h1 { font-size: 3.2rem; }
+#slide.layout-title h2 { font-size: 2.2rem; }
+#slide.layout-title p { font-size: 1.3rem; }
+
 /* Slide content typography */
-#slide h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.6em; letter-spacing: -0.02em; line-height: 1.2; }
-#slide h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 0.5em; letter-spacing: -0.01em; line-height: 1.25; }
-#slide h3 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.4em; line-height: 1.3; }
+#slide h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.6em; letter-spacing: -0.02em; line-height: 1.2; color: var(--slide-heading); }
+#slide h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 0.5em; letter-spacing: -0.01em; line-height: 1.25; color: var(--slide-heading); }
+#slide h3 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.4em; line-height: 1.3; color: var(--slide-heading); }
 #slide h4 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4em; }
 #slide p { font-size: 1.05rem; line-height: 1.7; margin-bottom: 0.7em; }
 #slide ul, #slide ol { font-size: 1.05rem; line-height: 1.7; margin-bottom: 0.7em; padding-left: 1.5em; }
 #slide li { margin-bottom: 0.3em; }
 #slide li > ul, #slide li > ol { margin-bottom: 0.15em; }
 #slide blockquote {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--slide-accent);
   padding-left: 1em;
   margin: 0.8em 0;
-  color: var(--text-muted);
+  color: var(--slide-text);
+  opacity: 0.7;
   font-style: italic;
 }
 #slide code {
@@ -149,16 +166,17 @@ html, body {
   border-radius: 4px;
   font-size: 0.9em;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+  color: var(--slide-accent);
 }
 #slide pre {
-  background: #0d1117;
+  background: var(--slide-code-bg);
   border-radius: 6px;
   padding: 1em 1.2em;
   overflow-x: auto;
   margin: 0.8em 0;
   font-size: 0.85rem;
   line-height: 1.55;
-  color: #e6edf3;
+  color: var(--slide-code-text);
 }
 #slide pre code {
   background: none;
@@ -168,7 +186,7 @@ html, body {
 }
 #slide pre code .hljs { background: transparent; }
 #slide img { max-width: 100%; border-radius: 6px; }
-#slide a { color: var(--accent); text-decoration: none; }
+#slide a { color: var(--slide-accent); text-decoration: none; }
 #slide a:hover { text-decoration: underline; }
 #slide strong { font-weight: 600; }
 #slide em { font-style: italic; }
@@ -207,7 +225,7 @@ html, body {
   bottom: 0;
   left: 0;
   height: 3px;
-  background: var(--accent);
+  background: var(--slide-accent);
   transition: width 0.3s ease;
   border-radius: 0 2px 0 0;
   z-index: 20;
@@ -285,8 +303,22 @@ html, body {
   var $navRight = document.getElementById('nav-right');
   var $scaler  = document.getElementById('slide-scaler');
 
-  var slides = [];
+  var slides = [];       // array of { body, layout }
   var currentIndex = 0;
+
+  // --- Built-in themes (matches ThemeRegistry.swift) ---
+  var themes = {
+    'dark':            { bg: '#1a1a2e', text: '#ffffff', heading: '#ffffff', accent: '#6c63ff', codeBg: '#16213e', codeText: '#e2e8f0' },
+    'light':           { bg: '#ffffff', text: '#1a1a2e', heading: '#1a1a2e', accent: '#6c63ff', codeBg: '#f1f5f9', codeText: '#334155' },
+    'ocean':           { bg: '#0a192f', text: '#ccd6f6', heading: '#64ffda', accent: '#64ffda', codeBg: '#112240', codeText: '#a8b2d1' },
+    'forest':          { bg: '#1b2d1b', text: '#d4e4d4', heading: '#8fbc8f', accent: '#98d98e', codeBg: '#162416', codeText: '#b5ccb5' },
+    'sunset':          { bg: '#2d1b2d', text: '#f0d0f0', heading: '#ff6b6b', accent: '#ffa07a', codeBg: '#3d1f3d', codeText: '#e8c0e8' },
+    'minimal':         { bg: '#fafafa', text: '#333333', heading: '#111111', accent: '#0066cc', codeBg: '#f0f0f0', codeText: '#333333' },
+    'solarized-dark':  { bg: '#002b36', text: '#839496', heading: '#93a1a1', accent: '#268bd2', codeBg: '#073642', codeText: '#93a1a1' },
+    'solarized-light': { bg: '#fdf6e3', text: '#657b83', heading: '#586e75', accent: '#268bd2', codeBg: '#eee8d5', codeText: '#586e75' },
+    'nord':            { bg: '#2e3440', text: '#d8dee9', heading: '#eceff4', accent: '#88c0d0', codeBg: '#3b4252', codeText: '#d8dee9' },
+    'dracula':         { bg: '#282a36', text: '#f8f8f2', heading: '#ff79c6', accent: '#bd93f9', codeBg: '#44475a', codeText: '#f8f8f2' }
+  };
 
   // --- Screens ---
   function showScreen(name) {
@@ -298,17 +330,51 @@ html, body {
     if (el) el.classList.add('active');
   }
 
-  // --- Markdown parsing ---
-  function stripFrontmatter(text) {
+  // --- Presentation frontmatter parsing ---
+  function parsePresentationFrontmatter(text) {
     text = text.trim();
-    if (!text.startsWith('---')) return text;
+    var meta = {};
+    if (!text.startsWith('---')) return { meta: meta, content: text };
     var lines = text.split('\n');
     for (var i = 1; i < lines.length; i++) {
       if (lines[i].trim() === '---') {
-        return lines.slice(i + 1).join('\n').trim();
+        // Parse YAML-like key: value pairs
+        for (var j = 1; j < i; j++) {
+          var match = lines[j].match(/^(\w[\w_]*)\s*:\s*(.+)$/);
+          if (match) {
+            meta[match[1].toLowerCase()] = match[2].trim();
+          }
+        }
+        return { meta: meta, content: lines.slice(i + 1).join('\n').trim() };
       }
     }
-    return text;
+    return { meta: meta, content: text };
+  }
+
+  // --- Per-slide metadata parsing ---
+  var slideMetaKeys = ['layout', 'image', 'video', 'embed'];
+
+  function parseSlideContent(raw) {
+    var lines = raw.split('\n');
+    var layout = 'default';
+    var bodyStart = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var trimmed = lines[i].trim();
+      if (trimmed === '') continue; // skip leading blanks
+      var match = trimmed.match(/^(layout|image|video|embed)\s*:\s*(.+)$/i);
+      if (match) {
+        if (match[1].toLowerCase() === 'layout') layout = match[2].trim();
+        bodyStart = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      body: lines.slice(bodyStart).join('\n').trim(),
+      layout: layout
+    };
   }
 
   function splitSlides(content) {
@@ -327,7 +393,7 @@ html, body {
       if (!inCodeBlock && trimmed === '---') {
         var body = current.trim();
         if (body.length > 0) {
-          result.push(body);
+          result.push(parseSlideContent(body));
         }
         current = '';
       } else {
@@ -337,10 +403,59 @@ html, body {
 
     var lastBody = current.trim();
     if (lastBody.length > 0) {
-      result.push(lastBody);
+      result.push(parseSlideContent(lastBody));
     }
 
     return result;
+  }
+
+  // --- Theme application ---
+  function applyTheme(meta) {
+    var t = null;
+    var themeName = meta.theme;
+    if (themeName && themeName !== 'auto') {
+      if (themeName === 'custom' && meta.theme_background) {
+        t = {
+          bg: meta.theme_background,
+          text: meta.theme_text || '#ffffff',
+          heading: meta.theme_heading || meta.theme_text || '#ffffff',
+          accent: meta.theme_accent || '#6c63ff',
+          codeBg: meta.theme_code_background || meta.theme_background,
+          codeText: meta.theme_code_text || meta.theme_text || '#ffffff'
+        };
+      } else if (themes[themeName]) {
+        t = themes[themeName];
+      }
+    }
+    if (!t) t = themes['dark']; // default
+
+    var root = document.documentElement;
+    root.style.setProperty('--bg', t.bg);
+    root.style.setProperty('--slide-bg', t.bg);
+    root.style.setProperty('--slide-text', t.text);
+    root.style.setProperty('--slide-heading', t.heading);
+    root.style.setProperty('--slide-accent', t.accent);
+    root.style.setProperty('--slide-code-bg', t.codeBg);
+    root.style.setProperty('--slide-code-text', t.codeText);
+
+    // Pick light or dark highlight.js theme
+    var isDark = isColorDark(t.bg);
+    var hlLink = document.querySelector('link[href*="highlight.js"]');
+    if (hlLink) {
+      hlLink.href = isDark
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+        : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+    }
+  }
+
+  function isColorDark(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r = parseInt(hex.substr(0, 2), 16) / 255;
+    var g = parseInt(hex.substr(2, 2), 16) / 255;
+    var b = parseInt(hex.substr(4, 2), 16) / 255;
+    var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luminance < 0.5;
   }
 
   // --- Rendering ---
@@ -359,22 +474,27 @@ html, body {
 
   function renderSlide(index, skipTransition) {
     if (index < 0 || index >= slides.length) return;
-    if (skipTransition) {
+    var slide = slides[index];
+
+    function doRender() {
       currentIndex = index;
-      $slide.innerHTML = marked.parse(slides[index]);
+      $slide.className = '';
+      if (slide.layout === 'title') {
+        $slide.classList.add('layout-title');
+      }
+      $slide.innerHTML = marked.parse(slide.body);
       highlightCode($slide);
       $counter.textContent = (index + 1) + ' / ' + slides.length;
       $progress.style.width = ((index + 1) / slides.length * 100) + '%';
+    }
+
+    if (skipTransition) {
+      doRender();
       return;
     }
     $slide.classList.add('fade-out');
     setTimeout(function () {
-      currentIndex = index;
-      $slide.innerHTML = marked.parse(slides[index]);
-      highlightCode($slide);
-      $counter.textContent = (index + 1) + ' / ' + slides.length;
-      $progress.style.width = ((index + 1) / slides.length * 100) + '%';
-      $slide.classList.remove('fade-out');
+      doRender();
     }, 150);
   }
 
@@ -461,14 +581,15 @@ html, body {
         return { content: firstFile.content, description: data.description };
       })
       .then(function (result) {
-        var content = stripFrontmatter(result.content);
-        slides = splitSlides(content);
+        var parsed = parsePresentationFrontmatter(result.content);
+        applyTheme(parsed.meta);
+        slides = splitSlides(parsed.content);
 
         if (slides.length === 0) throw new Error('No slides');
 
         // Set document title from gist description
         if (result.description) {
-          document.title = result.description + ' — Cicero';
+          document.title = result.description + ' \u2014 Cicero';
         }
 
         showScreen('viewer');
@@ -486,7 +607,7 @@ html, body {
       loadPresentation(gistId);
     } else {
       showScreen('landing');
-      document.title = 'Cicero — Presentations for developers';
+      document.title = 'Cicero \u2014 Presentations for developers';
     }
   }
 
