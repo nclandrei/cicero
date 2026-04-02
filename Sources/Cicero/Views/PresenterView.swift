@@ -46,22 +46,22 @@ struct PresenterView: View {
                         Text("·")
                         Text(presentation.wallClock)
                     }
-                    .font(.caption)
+                    .font(.system(size: 14))
                     .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(.black.opacity(0.35), in: Capsule())
 
                     Spacer()
 
                     // Slide counter — bottom right
                     Text("\(presentation.currentIndex + 1) / \(presentation.slides.count)")
-                        .font(.caption)
+                        .font(.system(size: 14))
                         .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.5))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
                         .background(.black.opacity(0.35), in: Capsule())
                 }
                 .padding(.horizontal, 24)
