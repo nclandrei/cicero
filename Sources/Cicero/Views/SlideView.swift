@@ -9,16 +9,18 @@ struct SlideView: View {
     var fontFamily: String? = nil
     var baseDirectory: URL? = nil
     var isInteractive: Bool = false
+    var isPresenting: Bool = false
     var onImageResize: ((String, CGFloat) -> Void)? = nil
 
     var body: some View {
         GeometryReader { geo in
             let size = slideSize(fitting: geo.size)
+            let scaledTheme = isPresenting ? theme.scaled(size.width / 960) : theme
             ZStack {
-                theme.background
+                scaledTheme.background
 
                 if let slide {
-                    slideContent(for: slide)
+                    slideContent(for: slide, theme: scaledTheme)
                 } else {
                     Text("No Slides")
                         .font(.title2)
@@ -33,7 +35,7 @@ struct SlideView: View {
     }
 
     @ViewBuilder
-    private func slideContent(for slide: Slide) -> some View {
+    private func slideContent(for slide: Slide, theme: SlideTheme) -> some View {
         switch slide.layout {
         case .title:
             TitleLayoutView(content: slide.body, theme: theme, fontFamily: fontFamily, baseDirectory: baseDirectory, isInteractive: isInteractive, onImageResize: onImageResize)
@@ -57,7 +59,7 @@ struct SlideView: View {
                         isInteractive: isInteractive,
                         onResize: onImageResize
                     ))
-                    .padding(60)
+                    .padding(60 * theme.fontScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }

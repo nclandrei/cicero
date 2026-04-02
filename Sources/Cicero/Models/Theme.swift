@@ -23,6 +23,7 @@ struct SlideTheme {
     let codeBackground: SwiftUI.Color
     let codeText: SwiftUI.Color
     let definition: ThemeDefinition?
+    var fontScale: CGFloat = 1.0
 
     init(
         background: SwiftUI.Color,
@@ -40,6 +41,12 @@ struct SlideTheme {
         self.codeBackground = codeBackground
         self.codeText = codeText
         self.definition = definition
+    }
+
+    func scaled(_ scale: CGFloat) -> SlideTheme {
+        var copy = self
+        copy.fontScale = scale
+        return copy
     }
 
     init(definition def: ThemeDefinition) {
@@ -70,13 +77,14 @@ struct SlideTheme {
     /// Standard markdown theme for regular slides
     func markdownTheme(fontFamily: String? = nil) -> MarkdownUI.Theme {
         let st = self
+        let s = fontScale
         return .gitHub
             .text {
                 if let fontFamily {
                     FontFamily(.custom(fontFamily))
                 }
                 ForegroundColor(st.text)
-                FontSize(22)
+                FontSize(22 * s)
             }
             .heading1 { configuration in
                 configuration.label
@@ -84,11 +92,11 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(44)
+                        FontSize(44 * s)
                         FontWeight(.bold)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 24)
+                    .markdownMargin(top: 0, bottom: 24 * s)
             }
             .heading2 { configuration in
                 configuration.label
@@ -96,11 +104,11 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(34)
+                        FontSize(34 * s)
                         FontWeight(.semibold)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 16)
+                    .markdownMargin(top: 0, bottom: 16 * s)
             }
             .heading3 { configuration in
                 configuration.label
@@ -108,27 +116,27 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(28)
+                        FontSize(28 * s)
                         FontWeight(.medium)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 12)
+                    .markdownMargin(top: 0, bottom: 12 * s)
             }
             .codeBlock { configuration in
                 configuration.label
                     .markdownTextStyle {
                         FontFamilyVariant(.monospaced)
-                        FontSize(16)
+                        FontSize(16 * s)
                         ForegroundColor(st.codeText)
                     }
-                    .padding(16)
+                    .padding(16 * s)
                     .background(st.codeBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .markdownMargin(top: 16, bottom: 16)
+                    .markdownMargin(top: 16 * s, bottom: 16 * s)
             }
             .code {
                 FontFamilyVariant(.monospaced)
-                FontSize(18)
+                FontSize(18 * s)
                 ForegroundColor(st.accent)
             }
             .strong {
@@ -139,20 +147,21 @@ struct SlideTheme {
             }
             .listItem { configuration in
                 configuration.label
-                    .markdownMargin(top: 4, bottom: 4)
+                    .markdownMargin(top: 4 * s, bottom: 4 * s)
             }
     }
 
     /// Larger heading theme for title layout slides
     func titleMarkdownTheme(fontFamily: String? = nil) -> MarkdownUI.Theme {
         let st = self
+        let s = fontScale
         return .gitHub
             .text {
                 if let fontFamily {
                     FontFamily(.custom(fontFamily))
                 }
                 ForegroundColor(st.text)
-                FontSize(26)
+                FontSize(26 * s)
             }
             .heading1 { configuration in
                 configuration.label
@@ -160,11 +169,11 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(56)
+                        FontSize(56 * s)
                         FontWeight(.bold)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 24)
+                    .markdownMargin(top: 0, bottom: 24 * s)
             }
             .heading2 { configuration in
                 configuration.label
@@ -172,11 +181,11 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(40)
+                        FontSize(40 * s)
                         FontWeight(.semibold)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 16)
+                    .markdownMargin(top: 0, bottom: 16 * s)
             }
             .heading3 { configuration in
                 configuration.label
@@ -184,27 +193,27 @@ struct SlideTheme {
                         if let fontFamily {
                             FontFamily(.custom(fontFamily))
                         }
-                        FontSize(32)
+                        FontSize(32 * s)
                         FontWeight(.medium)
                         ForegroundColor(st.heading)
                     }
-                    .markdownMargin(top: 0, bottom: 12)
+                    .markdownMargin(top: 0, bottom: 12 * s)
             }
             .codeBlock { configuration in
                 configuration.label
                     .markdownTextStyle {
                         FontFamilyVariant(.monospaced)
-                        FontSize(16)
+                        FontSize(16 * s)
                         ForegroundColor(st.codeText)
                     }
-                    .padding(16)
+                    .padding(16 * s)
                     .background(st.codeBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .markdownMargin(top: 16, bottom: 16)
+                    .markdownMargin(top: 16 * s, bottom: 16 * s)
             }
             .code {
                 FontFamilyVariant(.monospaced)
-                FontSize(18)
+                FontSize(18 * s)
                 ForegroundColor(st.accent)
             }
             .strong {
@@ -215,7 +224,7 @@ struct SlideTheme {
             }
             .listItem { configuration in
                 configuration.label
-                    .markdownMargin(top: 4, bottom: 4)
+                    .markdownMargin(top: 4 * s, bottom: 4 * s)
             }
     }
 }

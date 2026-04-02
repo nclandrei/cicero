@@ -16,7 +16,8 @@ struct PresenterView: View {
                     slide: slide,
                     theme: presenterTheme,
                     fontFamily: presentation.metadata.font,
-                    baseDirectory: presentation.filePath?.deletingLastPathComponent()
+                    baseDirectory: presentation.filePath?.deletingLastPathComponent(),
+                    isPresenting: true
                 )
                     .transition(slideTransition)
                     .id(presentation.currentIndex)
