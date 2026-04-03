@@ -5,5 +5,17 @@
     <link>https://cicero.nicolaeandrei.com/appcast.xml</link>
     <description>Cicero updates</description>
     <language>en</language>
+      <item>
+    <title>Cicero v20260403.070420</title>
+    <pubDate>Fri, 03 Apr 2026 07:08:58 +0000</pubDate>
+    <sparkle:version>20260403.070420</sparkle:version>
+    <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+    <enclosure
+      url="https://github.com/nclandrei/cicero/releases/download/v20260403.070420/Cicero.zip"
+      length="3618983"
+      type="application/octet-stream"
+      sparkle:edSignature="1GYrqJCwjreOxYwcgCby/q1IoD7zmhuK4hNmYy4YSUpLfOX93ltNSEr/QZ45kXx3qgPrMnZs5+X1wDXbmsBPCg=="
+    />
+  </item>
   </channel>
 </rss>
