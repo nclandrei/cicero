@@ -1,43 +1,50 @@
-# Cicero
-
 <p align="center">
-  <img src="icon/final/icon-512.png" width="128" height="128" alt="Cicero app icon" />
+  <img src="icon/cicero-icon-1024.png" width="128" height="128" alt="Cicero icon">
 </p>
 
-A macOS presentation app where slides are plain Markdown files and an AI agent can build, edit, and present the deck through MCP tools.
+# Cicero
+
+A macOS presentation app where slides are plain Markdown and an AI agent can build, edit, and present the deck through MCP tools.
+
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
+![Swift 6.0](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)
+![MIT License](https://img.shields.io/badge/license-MIT-blue)
 
 ## How It Works
 
-Cicero is a SwiftUI macOS app with a built-in HTTP server. A separate MCP server binary (`CiceroMCP`) exposes every operation as an MCP tool. The two communicate over `localhost:19847`, so any MCP-compatible agent (Claude Code, Claude Desktop, etc.) can create presentations, edit slides, switch themes, and start a fullscreen presentation — all without touching the GUI.
+Cicero is a SwiftUI app with a built-in HTTP server. A separate MCP server binary (`CiceroMCP`) exposes every operation as an MCP tool. The two communicate over `localhost:19847`, so any MCP-compatible agent (Claude Code, Claude Desktop, etc.) can create presentations, edit slides, switch themes, and run a fullscreen presentation — all without touching the GUI.
 
-You can also use the app directly. It has a split-pane editor with live preview, a slide overview grid, presenter mode, PDF export, and GitHub Gist publishing.
+You can also use the app directly. It has a split-pane editor with live preview, a slide overview grid, presenter mode with timer, PDF and HTML export, and GitHub Gist publishing with a [web viewer](https://cicero.nicolaeandrei.com).
 
-## Architecture
+## Features
 
-Three SwiftPM targets:
+- **Markdown slides** -- Write presentations in plain `.md` files with YAML frontmatter. Slides are separated by `---`.
+- **Live preview** -- Split-pane editor with instant rendering. Code blocks are syntax-highlighted via Splash.
+- **Slide layouts** -- Title, two-column, image-left, image-right, video, and embed layouts per slide.
+- **10 built-in themes** -- Dark, light, ocean, forest, sunset, minimal, solarized-dark, solarized-light, nord, dracula. Or define a fully custom palette.
+- **Presenter mode** -- Fullscreen presentation with slide counter, timer, and keyboard/mouse navigation.
+- **Font picker** -- Choose from any installed system font directly from the toolbar.
+- **PDF and HTML export** -- Each slide renders at 1920x1080. HTML export is self-contained with reveal.js.
+- **GitHub publishing** -- OAuth device flow authentication. Publish decks as Gists and share via the web viewer.
+- **33 MCP tools** -- Full agent parity. An AI agent can do everything the GUI can: create, edit, reorder, theme, screenshot, present, export, and publish.
+- **Proctor CLI** -- `swift run Proctor validate deck.md` to lint presentations from the terminal.
+- **File watching** -- Edits to the `.md` file on disk are picked up automatically.
+- **Undo/redo** -- Full edit history with keyboard shortcuts.
 
-| Target | What it does |
-|---|---|
-| **Cicero** | macOS SwiftUI app — editor, live preview, presenter mode, HTTP server |
-| **CiceroMCP** | MCP stdio server — proxies tool calls to the app over HTTP |
-| **Shared** | Library — slide parser, data models, theme definitions |
+## Install
 
-## Build & Run
+### Build from source
 
-Requires macOS 14+ and Swift 6.0.
+Requires Xcode 15+ / Swift 6.0.
 
 ```bash
 swift build
 swift run Cicero
 ```
 
-To use the MCP tools, start the app first, then run the MCP server:
+## MCP Setup
 
-```bash
-swift run CiceroMCP
-```
-
-Or add CiceroMCP to your MCP client config (e.g. Claude Code `settings.json`):
+Start the app, then point your MCP client at CiceroMCP:
 
 ```json
 {
@@ -50,9 +57,15 @@ Or add CiceroMCP to your MCP client config (e.g. Claude Code `settings.json`):
 }
 ```
 
+Or run it directly:
+
+```bash
+swift run CiceroMCP
+```
+
 ## Slide Format
 
-Presentations are `.md` files. An optional YAML frontmatter block sets document-level metadata, and `---` on its own line separates slides. Code blocks containing `---` are not treated as separators.
+An optional YAML frontmatter block sets document-level metadata. `---` on its own line separates slides. Code blocks containing `---` are not treated as separators.
 
 ```markdown
 ---
@@ -73,7 +86,7 @@ This is the first slide.
 - Bullet two
 ```
 
-### Frontmatter Fields
+### Frontmatter fields
 
 | Field | Description |
 |---|---|
@@ -88,123 +101,66 @@ This is the first slide.
 | `theme_code_background` | Custom code block background hex color |
 | `theme_code_text` | Custom code block text hex color |
 
-### Layouts
+### Slide layouts
 
-Each slide can set a layout in its first line:
+Each slide can set a layout as its first line:
 
 ```markdown
-layout: title
-# Welcome
+layout: two-column
+# Left Column
+
+Content here
+
+|||
+
+# Right Column
+
+More content
 ```
 
 | Layout | Description |
 |---|---|
-| `default` | Standard scrollable markdown slide |
+| `default` | Standard scrollable markdown |
 | `title` | Center-aligned with larger heading fonts |
-| `two-column` | Content split by `\|\|\|` separator into left and right columns |
+| `two-column` | Content split by `\|\|\|` into left and right columns |
 | `image-left` | Image on left, content on right |
 | `image-right` | Image on right, content on left |
+| `video` | Embedded video player |
+| `embed` | Web content embed |
 
-### Images
+## Architecture
 
-Standard markdown image syntax. Images are stored in an `assets/` directory alongside the `.md` file. Width can be set via URL fragment:
+Three SwiftPM targets plus a CLI:
 
-```markdown
-![Photo](assets/photo.png#w=400)
+```
+Sources/
+  Cicero/              macOS SwiftUI app — editor, preview, presenter, HTTP server
+    Models/            Presentation state, theme model, edit history
+    Services/          Local HTTP server, PDF export, screenshots, GitHub auth, file watcher
+    Views/             Editor, slide renderer, presenter, settings, toolbar
+  CiceroMCP/           MCP stdio server — proxies tool calls to app over HTTP
+  Shared/              Slide parser, theme registry, API models, HTML export
+  Proctor/             CLI validator for presentation files
+
+docs/                  Web viewer (GitHub Pages)
 ```
 
-## Themes
+### Dependencies
 
-10 built-in themes: `dark`, `light`, `ocean`, `forest`, `sunset`, `minimal`, `solarized-dark`, `solarized-light`, `nord`, `dracula`.
+- [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui) -- Markdown rendering
+- [Splash](https://github.com/JohnSundell/Splash) -- Code syntax highlighting
+- [Swifter](https://github.com/httpswift/swifter) -- HTTP server for IPC
+- [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) -- MCP protocol
 
-Each theme defines six colors: background, text, heading, accent, code background, and code text.
+### Key implementation details
 
-Set `theme: auto` to follow the system appearance. Set `theme: custom` and provide `theme_*` frontmatter fields for a fully custom palette.
-
-## Presenter Mode
-
-Enter from the toolbar play button or via the `start_presentation` MCP tool. Slides display fullscreen with a slide counter in the bottom right.
-
-Navigation:
-- Left/right arrow keys
-- Space bar (next)
-- Click left half (previous) / right half (next)
-- Escape to exit
-
-## PDF Export
-
-File > Export PDF (Cmd+Shift+E). Each slide renders at 1920x1080 and is embedded as a page in the output PDF, preserving the active theme.
-
-## GitHub Publishing
-
-Authenticate with GitHub via Settings (Cmd+,) using the OAuth device flow. Publish presentations as Gists (public or private) and get a shareable link to the Cicero web viewer at `https://cicero.nicolaeandrei.com/#/g/{gistId}`.
-
-## MCP Tools
-
-CiceroMCP exposes 24 tools:
-
-**Slides** — `list_slides`, `get_slide`, `set_slide`, `add_slide`, `remove_slide`
-**Navigation** — `next_slide`, `prev_slide`, `goto_slide`
-**Presentation** — `start_presentation`, `stop_presentation`
-**Screenshots** — `screenshot_slide`, `all_thumbnails`
-**Files** — `open_file`, `create_presentation`, `get_status`
-**Export** — `export_pdf`
-**Images** — `add_image`
-**Themes** — `list_themes`, `get_theme`, `set_theme`
-**Publishing** — `auth_status`, `publish_gist`
-
-## HTTP API
-
-The app runs a local HTTP server on port `19847`. All responses are JSON.
-
-**GET**
-
-| Endpoint | Description |
-|---|---|
-| `/status` | Current slide index, total count, presenting state, file path, title, theme |
-| `/slides` | All slides with indices, titles, content, layouts |
-| `/slides/:index` | Single slide details |
-| `/current` | Current index and total count |
-| `/screenshot` | Current slide as base64 PNG |
-| `/screenshot/:index` | Specific slide as base64 PNG |
-| `/thumbnails` | Base64 PNG thumbnails of all slides |
-| `/auth/status` | GitHub authentication status |
-| `/themes` | All available theme definitions |
-| `/theme` | Current theme name and colors |
-| `/export/pdf` | Full presentation as base64 PDF |
-
-**POST**
-
-| Endpoint | Body | Description |
-|---|---|---|
-| `/navigate` | `{action, index?}` | Navigate: `next`, `prev`, or `goto` |
-| `/slides` | `{content, afterIndex?}` | Add a slide |
-| `/open` | `{path}` | Open a `.md` file |
-| `/create` | `{markdown}` | Create presentation from markdown string |
-| `/presentation/start` | — | Enter presenter mode |
-| `/presentation/stop` | — | Exit presenter mode |
-| `/images` | `{base64Data, name?}` | Add image to assets directory |
-| `/publish` | `{isPublic}` | Publish as GitHub Gist |
-
-**PUT**
-
-| Endpoint | Body | Description |
-|---|---|---|
-| `/slides/:index` | `{content}` | Update slide content |
-| `/theme` | `{name, background?, text?, ...}` | Set theme |
-
-**DELETE**
-
-| Endpoint | Description |
-|---|---|
-| `/slides/:index` | Remove a slide |
-
-## Dependencies
-
-- [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui) — Markdown rendering
-- [Splash](https://github.com/JohnSundell/Splash) — Code syntax highlighting
-- [Swifter](https://github.com/httpswift/swifter) — HTTP server for IPC
-- [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) — MCP protocol
+- Slides are parsed from Markdown by walking lines and splitting on `---` separators, with special handling to avoid splitting inside fenced code blocks.
+- The app runs a local HTTP server (Swifter) on port 19847. CiceroMCP calls these endpoints to execute every tool.
+- Themes are defined as six-color palettes (background, text, heading, accent, code background, code text). `auto` follows the system appearance.
+- Presenter mode renders slides fullscreen with a HUD overlay showing slide counter and elapsed time.
+- PDF export renders each slide at 1920x1080 into a multi-page PDF using the active theme.
+- HTML export produces a self-contained reveal.js file that works in any browser.
+- GitHub publishing uses the OAuth device flow. Tokens are stored in the macOS Keychain.
 
 ## Development
 
@@ -212,3 +168,7 @@ The app runs a local HTTP server on port `19847`. All responses are JSON.
 swift build
 swift test
 ```
+
+## License
+
+[MIT](LICENSE)
