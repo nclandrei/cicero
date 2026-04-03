@@ -11,10 +11,6 @@ actor GitHubAuth {
 
     init(clientId: String) {
         self.clientId = clientId
-        self.token = Self.loadTokenFromKeychain(
-            service: "com.andreinicolas.Cicero.github",
-            account: "access_token"
-        )
     }
 
     var isAuthenticated: Bool { token != nil }
@@ -89,6 +85,12 @@ actor GitHubAuth {
     }
 
     func restoreSession() async {
+        if self.token == nil {
+            self.token = Self.loadTokenFromKeychain(
+                service: keychainService,
+                account: keychainAccount
+            )
+        }
         guard let token = self.token else { return }
         self.username = try? await fetchUsername(token: token)
     }

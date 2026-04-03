@@ -25,9 +25,10 @@ struct CiceroApp: App {
         // Show dock icon and make windows interactive (required for SwiftPM executables)
         NSApplication.shared.setActivationPolicy(.regular)
 
-        // Set app icon from bundled resource
-        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
+        // Set app icon — try app bundle first (distributed .app), fall back to SwiftPM resource bundle (swift run)
+        let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns")
+            ?? Bundle.module.url(forResource: "AppIcon", withExtension: "icns")
+        if let iconURL, let icon = NSImage(contentsOf: iconURL) {
             NSApplication.shared.applicationIconImage = icon
         }
     }
