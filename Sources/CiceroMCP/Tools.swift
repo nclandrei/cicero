@@ -5,13 +5,16 @@ import Shared
 /// All Cicero MCP tool definitions
 enum CiceroTools {
     static let all: [Tool] = [
+        // MARK: - Slide CRUD
+
         Tool(
             name: "list_slides",
             description: "List all slides with their titles and content",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([:]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "get_slide",
@@ -22,7 +25,8 @@ enum CiceroTools {
                     "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
                 ]),
                 "required": .array([.string("index")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "set_slide",
@@ -34,7 +38,8 @@ enum CiceroTools {
                     "content": .object(["type": "string", "description": "New markdown content for the slide. Add 'layout: <type>' as the first line for layout. Use '|||' to separate columns in two-column layout."]),
                 ]),
                 "required": .array([.string("index"), .string("content")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "add_slide",
@@ -46,7 +51,8 @@ enum CiceroTools {
                     "after_index": .object(["type": "integer", "description": "Insert after this slide index. Omit to append at end."]),
                 ]),
                 "required": .array([.string("content")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "remove_slide",
@@ -57,7 +63,8 @@ enum CiceroTools {
                     "index": .object(["type": "integer", "description": "Slide index to remove (0-based)"]),
                 ]),
                 "required": .array([.string("index")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "reorder_slide",
@@ -69,17 +76,23 @@ enum CiceroTools {
                     "to": .object(["type": "integer", "description": "Destination slide index (0-based)"]),
                 ]),
                 "required": .array([.string("from"), .string("to")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Navigation
+
         Tool(
             name: "next_slide",
             description: "Navigate to the next slide",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "prev_slide",
             description: "Navigate to the previous slide",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "goto_slide",
@@ -90,8 +103,12 @@ enum CiceroTools {
                     "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
                 ]),
                 "required": .array([.string("index")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Screenshots
+
         Tool(
             name: "screenshot_slide",
             description: "Capture a rendered screenshot of a slide as PNG",
@@ -101,27 +118,38 @@ enum CiceroTools {
                     "index": .object(["type": "integer", "description": "Slide index (0-based). Omit for current slide."]),
                     "save_path": .object(["type": "string", "description": "Optional absolute file path to save the PNG to disk. If omitted, the image is returned inline only."]),
                 ]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "all_thumbnails",
             description: "Get thumbnail images of all slides as base64 PNGs",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
+
+        // MARK: - Presentation mode
+
         Tool(
             name: "start_presentation",
             description: "Enter fullscreen presentation mode",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "stop_presentation",
             description: "Exit presentation mode",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Status & files
+
         Tool(
             name: "get_status",
             description: "Get the current state of the presentation (current slide, mode, file path)",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "open_file",
@@ -132,7 +160,8 @@ enum CiceroTools {
                     "path": .object(["type": "string", "description": "Absolute path to the .md file"]),
                 ]),
                 "required": .array([.string("path")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "create_presentation",
@@ -143,12 +172,17 @@ enum CiceroTools {
                     "markdown": .object(["type": "string", "description": "Full markdown content including slide separators (---)"]),
                 ]),
                 "required": .array([.string("markdown")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - GitHub
+
         Tool(
             name: "auth_status",
             description: "Check GitHub authentication status",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "publish_gist",
@@ -158,13 +192,21 @@ enum CiceroTools {
                 "properties": .object([
                     "public": .object(["type": "boolean", "description": "Whether the gist should be public (default: false)"]),
                 ]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true)
         ),
+
+        // MARK: - Export
+
         Tool(
             name: "export_pdf",
             description: "Export the current presentation as a multi-page PDF",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
+
+        // MARK: - Images
+
         Tool(
             name: "add_image",
             description: "Add an image to the presentation assets. Returns a markdown snippet to insert into a slide.",
@@ -175,17 +217,23 @@ enum CiceroTools {
                     "name": .object(["type": "string", "description": "Optional name for the image file (without extension)"]),
                 ]),
                 "required": .array([.string("base64_data")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
+
+        // MARK: - Theming
+
         Tool(
             name: "list_themes",
             description: "List all available built-in themes with their color definitions",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "get_theme",
             description: "Get the current presentation theme name and color definition",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "set_theme",
@@ -202,12 +250,17 @@ enum CiceroTools {
                     "code_text": .object(["type": "string", "description": "Hex code block text color"]),
                 ]),
                 "required": .array([.string("name")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Font
+
         Tool(
             name: "get_font",
             description: "Get the current font and list of available font families",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "set_font",
@@ -217,12 +270,17 @@ enum CiceroTools {
                 "properties": .object([
                     "name": .object(["type": "string", "description": "Font family name (e.g. 'Georgia', 'SF Mono'). Omit for system default."]),
                 ]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Transition
+
         Tool(
             name: "get_transition",
             description: "Get the current slide transition and list of available transition types",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "set_transition",
@@ -233,28 +291,42 @@ enum CiceroTools {
                     "name": .object(["type": "string", "description": "Transition type: none, fade, slide, or push"]),
                 ]),
                 "required": .array([.string("name")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+
+        // MARK: - Save & markdown
+
         Tool(
             name: "save_file",
             description: "Save the current presentation to disk. Requires a file path (opened or previously saved).",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "get_markdown",
             description: "Get the full raw markdown of the presentation including YAML frontmatter, all slides, and separators",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
+
+        // MARK: - Undo/redo
+
         Tool(
             name: "undo",
             description: "Undo the last edit to the presentation",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "redo",
             description: "Redo the last undone edit to the presentation",
-            inputSchema: .object(["type": "object", "properties": .object([:])])
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
+
+        // MARK: - Search
+
         Tool(
             name: "search_slides",
             description: "Search across all slides for a text query. Returns matching slides with excerpts showing context around each match.",
@@ -264,8 +336,12 @@ enum CiceroTools {
                     "query": .object(["type": "string", "description": "Text to search for (case-insensitive)"]),
                 ]),
                 "required": .array([.string("query")]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
+
+        // MARK: - HTML export
+
         Tool(
             name: "export_html",
             description: "Export the current presentation as a self-contained HTML file using reveal.js. The HTML works in any browser with theming, layouts, code highlighting, and speaker notes.",
@@ -274,7 +350,8 @@ enum CiceroTools {
                 "properties": .object([
                     "output_path": .object(["type": "string", "description": "Optional file path to write the HTML to. If omitted, returns the HTML content."]),
                 ]),
-            ])
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
     ]
 }
