@@ -99,6 +99,7 @@ enum CiceroTools {
                 "type": "object",
                 "properties": .object([
                     "index": .object(["type": "integer", "description": "Slide index (0-based). Omit for current slide."]),
+                    "save_path": .object(["type": "string", "description": "Optional absolute file path to save the PNG to disk. If omitted, the image is returned inline only."]),
                 ]),
             ])
         ),
@@ -360,9 +361,17 @@ enum CiceroToolHandler {
                 path = "/screenshot"
             }
             let resp: ScreenshotResponse = try await client.get(path)
+            var savedMessage = ""
+            if let savePath = arguments?["save_path"]?.stringValue, !savePath.isEmpty {
+                if let pngData = Data(base64Encoded: resp.base64PNG) {
+                    let url = URL(fileURLWithPath: savePath)
+                    try pngData.write(to: url)
+                    savedMessage = " (saved to \(savePath))"
+                }
+            }
             return .init(
                 content: [
-                    .text(text: "Screenshot of slide \(resp.slideIndex + 1)", annotations: nil, _meta: nil),
+                    .text(text: "Screenshot of slide \(resp.slideIndex + 1)\(savedMessage)", annotations: nil, _meta: nil),
                     .image(data: resp.base64PNG, mimeType: "image/png", annotations: nil, _meta: nil),
                 ],
                 isError: false

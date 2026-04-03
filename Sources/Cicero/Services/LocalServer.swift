@@ -186,15 +186,17 @@ final class LocalServer {
             return self.jsonResponse(resp)
         }
 
-        server.GET["/screenshot"] = { [weak self] _ in
+        server.GET["/screenshot"] = { [weak self] request in
             guard let self else { return .internalServerError }
-            return self.renderScreenshot(index: nil)
+            let savePath = request.queryParams.first(where: { $0.0 == "save_path" })?.1.removingPercentEncoding
+            return self.renderScreenshot(index: nil, savePath: savePath)
         }
 
         server.GET["/screenshot/:index"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let index = self.pathInt(request, ":index")
-            return self.renderScreenshot(index: index)
+            let savePath = request.queryParams.first(where: { $0.0 == "save_path" })?.1.removingPercentEncoding
+            return self.renderScreenshot(index: index, savePath: savePath)
         }
 
         server.GET["/thumbnails"] = { [weak self] _ in
@@ -591,19 +593,24 @@ final class LocalServer {
 
     // MARK: - Helpers
 
-    private func renderScreenshot(index: Int?) -> HttpResponse {
-        let result = onMain { () -> ScreenshotResponse? in
+    private func renderScreenshot(index: Int?, savePath: String? = nil) -> HttpResponse {
+        let result = onMain { () -> (ScreenshotResponse, Data)? in
             let slideIndex = index ?? self.presentation.currentIndex
             guard slideIndex >= 0 && slideIndex < self.presentation.slides.count else { return nil }
             let slide = self.presentation.slides[slideIndex]
             guard let pngData = self.screenshotService.renderSlideSync(slide) else { return nil }
-            return ScreenshotResponse(
+            let resp = ScreenshotResponse(
                 base64PNG: pngData.base64EncodedString(),
                 slideIndex: slideIndex
             )
+            return (resp, pngData)
         }
         guard let result else { return jsonError("Failed to render screenshot") }
-        return jsonResponse(result)
+        if let savePath, !savePath.isEmpty {
+            let url = URL(fileURLWithPath: savePath)
+            try? result.1.write(to: url)
+        }
+        return jsonResponse(result.0)
     }
 
     @discardableResult

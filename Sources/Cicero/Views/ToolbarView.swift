@@ -1,5 +1,57 @@
 import SwiftUI
+import AppKit
 import Shared
+
+// MARK: - FontPanelBridge
+
+/// An invisible NSView that becomes first responder to receive `changeFont(_:)` callbacks
+/// from the system font panel, bridging them into SwiftUI.
+struct FontPanelBridge: NSViewRepresentable {
+    var onFontSelected: (String) -> Void
+
+    func makeNSView(context: Context) -> FontPanelResponder {
+        let view = FontPanelResponder()
+        view.onFontSelected = onFontSelected
+        // Become first responder after being added to the window so NSFontPanel routes to us
+        DispatchQueue.main.async {
+            view.window?.makeFirstResponder(view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: FontPanelResponder, context: Context) {
+        nsView.onFontSelected = onFontSelected
+    }
+
+    class FontPanelResponder: NSView, NSFontChanging {
+        var onFontSelected: ((String) -> Void)?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        func changeFont(_ sender: NSFontManager?) {
+            guard let manager = sender else { return }
+            let newFont = manager.convert(NSFont.systemFont(ofSize: 14))
+            let familyName = newFont.familyName ?? newFont.fontName
+            onFontSelected?(familyName)
+        }
+
+        func validModesForFontPanel(_ fontPanel: NSFontPanel) -> NSFontPanel.ModeMask {
+            [.face, .collection, .size]
+        }
+    }
+}
+
+// MARK: - ToolbarView
+
+private let curatedFonts = [
+    "SF Pro Display",
+    "Helvetica Neue",
+    "Georgia",
+    "Palatino",
+    "Courier New",
+    "Menlo",
+    "SF Mono",
+]
 
 struct ToolbarView: ToolbarContent {
     @Environment(Presentation.self) private var presentation
@@ -13,6 +65,7 @@ struct ToolbarView: ToolbarContent {
     @State private var isExportingPDF = false
     @State private var showSignInAlert = false
     @State private var publishedURL: String?
+    @State private var showFontPanel = false
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -70,16 +123,21 @@ struct ToolbarView: ToolbarContent {
                         }
                     }
                 }
+
+                if let customFont = presentation.metadata.font,
+                   !curatedFonts.contains(customFont) {
+                    Divider()
+                    Button(action: { presentation.setFont(customFont) }) {
+                        HStack {
+                            Text(customFont)
+                                .font(.custom(customFont, size: 14))
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
                 Divider()
-                ForEach([
-                    "SF Pro Display",
-                    "Helvetica Neue",
-                    "Georgia",
-                    "Palatino",
-                    "Courier New",
-                    "Menlo",
-                    "SF Mono",
-                ], id: \.self) { fontName in
+                ForEach(curatedFonts, id: \.self) { fontName in
                     Button(action: { presentation.setFont(fontName) }) {
                         HStack {
                             Text(fontName)
@@ -90,10 +148,29 @@ struct ToolbarView: ToolbarContent {
                         }
                     }
                 }
+
+                Divider()
+                Button("Other...") {
+                    showFontPanel = true
+                    NSFontPanel.shared.orderFront(nil)
+                }
             } label: {
                 Image(systemName: "textformat")
             }
             .help("Slide font")
+            .background {
+                if showFontPanel {
+                    FontPanelBridge { familyName in
+                        presentation.setFont(familyName)
+                    }
+                    .frame(width: 0, height: 0)
+                    .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
+                        if notification.object as? NSWindow == NSFontPanel.shared {
+                            showFontPanel = false
+                        }
+                    }
+                }
+            }
 
             Menu {
                 ForEach(ThemeRegistry.builtIn, id: \.name) { theme in
