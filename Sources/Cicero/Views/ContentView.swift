@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(Presentation.self) private var presentation
@@ -7,6 +8,7 @@ struct ContentView: View {
     @State private var toastMessage: String?
     @State private var autoSaveTask: Task<Void, Never>?
     @State private var checkpointTask: Task<Void, Never>?
+    @State private var previewDropTargeted = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -25,6 +27,18 @@ struct ContentView: View {
                 }
             )
                 .frame(minWidth: 400, idealWidth: 700)
+                .onDrop(of: [.image, .fileURL], isTargeted: $previewDropTargeted) { providers in
+                    handleImageDrop(providers)
+                    return true
+                }
+                .overlay {
+                    if previewDropTargeted {
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.accentColor, lineWidth: 3)
+                            .background(Color.accentColor.opacity(0.1))
+                            .allowsHitTesting(false)
+                    }
+                }
         }
         .toolbar {
             ToolbarView(
@@ -101,6 +115,55 @@ struct ContentView: View {
         )
         if newContent != content {
             presentation.updateSlide(at: idx, content: newContent)
+        }
+    }
+
+    private func handleImageDrop(_ providers: [NSItemProvider]) {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                    guard let data = item as? Data,
+                          let url = URL(dataRepresentation: data, relativeTo: nil),
+                          let imageData = try? Data(contentsOf: url)
+                    else { return }
+                    let name = url.deletingPathExtension().lastPathComponent
+                    DispatchQueue.main.async {
+                        insertImage(data: imageData, name: name)
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    guard let data else { return }
+                    DispatchQueue.main.async {
+                        insertImage(data: data, name: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    private func insertImage(data: Data, name: String?) {
+        ensureFileIsSaved {
+            guard let snippet = presentation.addImage(data, name: name) else { return }
+            let currentIdx = presentation.currentIndex
+            guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
+            let currentContent = presentation.slides[currentIdx].content
+            presentation.updateSlide(at: currentIdx, content: currentContent + "\n\n" + snippet)
+        }
+    }
+
+    private func ensureFileIsSaved(then action: @escaping () -> Void) {
+        if presentation.filePath != nil {
+            action()
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "md")!]
+        panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
+        if panel.runModal() == .OK, let url = panel.url {
+            presentation.filePath = url
+            try? presentation.save()
+            action()
         }
     }
 

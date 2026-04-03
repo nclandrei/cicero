@@ -31,16 +31,15 @@ struct SlideEditorView: View {
 
             Divider()
 
-            TextEditor(text: Binding(
-                get: { presentation.markdown },
-                set: { presentation.updateFromEditor($0) }
-            ))
-            .font(.system(.body, design: .monospaced))
-            .scrollContentBackground(.visible)
-            .onDrop(of: [.image, .fileURL], isTargeted: $dropTargeted) { providers in
-                handleDrop(providers)
-                return true
-            }
+            CodeEditorView(
+                text: Binding(
+                    get: { presentation.markdown },
+                    set: { presentation.updateFromEditor($0) }
+                ),
+                onImageDrop: { data, name in
+                    insertImage(data: data, name: name)
+                }
+            )
             .overlay {
                 if dropTargeted {
                     RoundedRectangle(cornerRadius: 8)
@@ -83,11 +82,27 @@ struct SlideEditorView: View {
     }
 
     private func insertImage(data: Data, name: String?) {
-        guard let snippet = presentation.addImage(data, name: name) else { return }
-        // Append the image markdown to the current slide's content
-        let currentIdx = presentation.currentIndex
-        guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
-        let currentContent = presentation.slides[currentIdx].content
-        presentation.updateSlide(at: currentIdx, content: currentContent + "\n\n" + snippet)
+        ensureFileIsSaved { [presentation] in
+            guard let snippet = presentation.addImage(data, name: name) else { return }
+            let currentIdx = presentation.currentIndex
+            guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
+            let currentContent = presentation.slides[currentIdx].content
+            presentation.updateSlide(at: currentIdx, content: currentContent + "\n\n" + snippet)
+        }
+    }
+
+    private func ensureFileIsSaved(then action: @escaping () -> Void) {
+        if presentation.filePath != nil {
+            action()
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "md")!]
+        panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
+        if panel.runModal() == .OK, let url = panel.url {
+            presentation.filePath = url
+            try? presentation.save()
+            action()
+        }
     }
 }
