@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import Sparkle
 
 @main
 struct CiceroApp: App {
@@ -8,6 +9,9 @@ struct CiceroApp: App {
     @State private var fileWatcher: FileWatcher?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+
+    // Auto-update
+    @StateObject private var updater = UpdaterController()
 
     // Auth state
     @State private var auth = GitHubAuth(clientId: "Ov23liDEDmYLwzNebYiR")
@@ -145,6 +149,15 @@ struct CiceroApp: App {
                     }
                 }
                 .keyboardShortcut("s")
+            }
+        }
+
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
             }
         }
 

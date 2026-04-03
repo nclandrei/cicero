@@ -1,0 +1,302 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          echo "tag=$(date -u +'%Y%m%d.%H%M%S')" >> "$GITHUB_OUTPUT"
+          CURRENT=$(cat VERSION | tr -d '[:space:]')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          PATCH=$((PATCH + 1))
+          NEXT="${MAJOR}.${MINOR}.${PATCH}"
+          echo "$NEXT" > VERSION
+          echo "display=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Import signing certificate
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Create .app bundle
+        run: |
+          APP="Cicero.app"
+          BIN_PATH=$(swift build -c release --show-bin-path)
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp "$BIN_PATH/Cicero" "$APP/Contents/MacOS/"
+          install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/Cicero"
+          cp Sources/Cicero/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          cat > "$APP/Contents/Info.plist" << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>Cicero</string>
+            <key>CFBundleDisplayName</key>
+            <string>Cicero</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.andreinicolas.Cicero</string>
+            <key>CFBundleVersion</key>
+            <string>${{ steps.version.outputs.tag }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ steps.version.outputs.display }}</string>
+            <key>CFBundleExecutable</key>
+            <string>Cicero</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>SUFeedURL</key>
+            <string>https://cicero.nicolaeandrei.com/appcast.xml</string>
+            <key>SUPublicEDKey</key>
+            <string>${{ secrets.SPARKLE_EDDSA_PUBLIC_KEY }}</string>
+            <key>SUEnableAutomaticChecks</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Embed Sparkle framework
+        run: |
+          BIN_PATH=$(swift build -c release --show-bin-path)
+          mkdir -p Cicero.app/Contents/Frameworks
+          cp -R "$BIN_PATH/Sparkle.framework" Cicero.app/Contents/Frameworks/
+
+      - name: Codesign
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          ENTITLEMENTS="Cicero.entitlements"
+
+          # Sign all nested code (XPC services, dylibs, frameworks) deepest-first
+          find Cicero.app/Contents \( -name "*.xpc" -o -name "*.dylib" -o -name "*.framework" \) -print0 | \
+            sort -rz | while IFS= read -r -d '' item; do
+            codesign --force --sign "$IDENTITY" --options runtime --timestamp "$item"
+          done
+
+          # Sign the main app
+          codesign --force --sign "$IDENTITY" \
+            --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --timestamp \
+            --deep \
+            Cicero.app
+
+      - name: Verify codesign
+        run: codesign -dvv Cicero.app
+
+      - name: Package for notarization
+        run: ditto -c -k --sequesterRsrc --keepParent Cicero.app Cicero.zip
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          RESULT=$(xcrun notarytool submit Cicero.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait 2>&1)
+          echo "$RESULT"
+
+          ID=$(echo "$RESULT" | grep "id:" | head -1 | awk '{print $2}')
+          STATUS=$(echo "$RESULT" | grep "status:" | tail -1 | awk '{print $2}')
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "Notarization failed with status: $STATUS"
+            echo "Fetching notarization log..."
+            xcrun notarytool log "$ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" || true
+            exit 1
+          fi
+
+      - name: Wait for ticket propagation
+        run: |
+          echo "Waiting 60s for Apple notarization ticket to propagate..."
+          sleep 60
+
+      - name: Staple
+        continue-on-error: true
+        run: |
+          for i in $(seq 1 5); do
+            if xcrun stapler staple Cicero.app; then
+              exit 0
+            fi
+            echo "Staple attempt $i failed, waiting 30s..."
+            sleep 30
+          done
+          echo "::warning::Stapling failed — app is still notarized and will work, Gatekeeper checks online instead"
+          exit 1
+
+      - name: Re-package
+        run: |
+          rm Cicero.zip
+          ditto -c -k --sequesterRsrc --keepParent Cicero.app Cicero.zip
+
+      - name: Compute SHA256
+        id: sha
+        run: echo "sha256=$(shasum -a 256 Cicero.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Compute file size
+        id: filesize
+        run: echo "size=$(stat -f%z Cicero.zip)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Sparkle signature
+        id: sparkle
+        env:
+          SPARKLE_EDDSA_PRIVATE_KEY: ${{ secrets.SPARKLE_EDDSA_PRIVATE_KEY }}
+        run: |
+          SPARKLE_VERSION="2.6.0"
+          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o "$RUNNER_TEMP/sparkle.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          KEY_FILE="$RUNNER_TEMP/sparkle_ed_key"
+          echo "$SPARKLE_EDDSA_PRIVATE_KEY" > "$KEY_FILE"
+          SIGN_OUTPUT=$("$RUNNER_TEMP/sparkle/bin/sign_update" Cicero.zip --ed-key-file "$KEY_FILE")
+          rm -f "$KEY_FILE"
+          ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          echo "signature=$ED_SIGNATURE" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.tag }}"
+          FULL_SHA="${{ github.sha }}"
+          SHORT_SHA=$(echo "$FULL_SHA" | cut -c1-7)
+          gh release create "$TAG" \
+            --title "Cicero ${TAG}" \
+            --notes "Automated build from main (${SHORT_SHA}). Signed and notarized." \
+            --target "${FULL_SHA}" \
+            Cicero.zip
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.tag }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+          URL="https://github.com/nclandrei/cicero/releases/download/${TAG}/Cicero.zip"
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/nclandrei/homebrew-tap.git" "$RUNNER_TEMP/homebrew-tap"
+
+          CASK_FILE="$RUNNER_TEMP/homebrew-tap/Casks/cicero.rb"
+          {
+            echo "cask \"cicero\" do"
+            echo "  version \"${TAG#v}\""
+            echo "  sha256 \"${SHA256}\""
+            echo ""
+            echo "  url \"${URL}\""
+            echo "  name \"Cicero\""
+            echo "  desc \"AI-native macOS presentation app for developers\""
+            echo "  homepage \"https://github.com/nclandrei/cicero\""
+            echo ""
+            echo "  depends_on macos: \">= :sonoma\""
+            echo ""
+            echo "  app \"Cicero.app\""
+            echo ""
+            echo "  zap trash: ["
+            echo "    \"~/Library/Preferences/com.andreinicolas.Cicero.plist\","
+            echo "  ]"
+            echo "end"
+          } > "$CASK_FILE"
+
+          cd "$RUNNER_TEMP/homebrew-tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/cicero.rb
+          git commit -m "Update cicero to ${TAG}"
+          git push
+
+      - name: Update appcast.xml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.tag }}"
+          SIZE="${{ steps.filesize.outputs.size }}"
+          URL="https://github.com/nclandrei/cicero/releases/download/${TAG}/Cicero.zip"
+          SIGNATURE="${{ steps.sparkle.outputs.signature }}"
+          PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
+
+          python3 -c "
+          import sys
+          item = '''    <item>
+              <title>Cicero $TAG</title>
+              <pubDate>$PUB_DATE</pubDate>
+              <sparkle:version>$VERSION</sparkle:version>
+              <sparkle:shortVersionString>${{ steps.version.outputs.display }}</sparkle:shortVersionString>
+              <enclosure
+                url=\"$URL\"
+                length=\"$SIZE\"
+                type=\"application/octet-stream\"
+                sparkle:edSignature=\"$SIGNATURE\"
+              />
+            </item>
+          '''
+          with open('docs/appcast.xml', 'r') as f:
+              content = f.read()
+          content = content.replace('</channel>', item + '  </channel>')
+          with open('docs/appcast.xml', 'w') as f:
+              f.write(content)
+          "
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/appcast.xml VERSION
+          git commit -m "Update appcast.xml for ${TAG}"
+          git push origin HEAD:main
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
