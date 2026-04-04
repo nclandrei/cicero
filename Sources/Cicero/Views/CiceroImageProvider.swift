@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import MarkdownUI
+import Shared
 
 /// Video file extensions detected for inline `![video](path)` syntax.
 private let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm", "avi"]
@@ -102,14 +103,14 @@ private struct CiceroImageView: View {
                         }
                     )
                 } else {
-                    let img = Image(nsImage: nsImage)
+                    let maxW = ImageSizing.constrainedWidth(
+                        explicitWidth: initialWidth,
+                        naturalWidth: nsImage.size.width
+                    )
+                    Image(nsImage: nsImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                    if let initialWidth {
-                        img.frame(width: initialWidth)
-                    } else {
-                        img.frame(maxWidth: .infinity)
-                    }
+                        .frame(maxWidth: maxW)
                 }
             } else {
                 // Fallback for remote URLs
@@ -118,7 +119,7 @@ private struct CiceroImageView: View {
                 } placeholder: {
                     ProgressView()
                 }
-                .frame(maxWidth: initialWidth ?? .infinity)
+                .frame(maxWidth: initialWidth ?? 800)
             }
         }
         .onAppear { loadImage() }
