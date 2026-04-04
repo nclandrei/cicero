@@ -263,8 +263,15 @@ struct ToolbarView: ToolbarContent {
         let service = PDFExportService(
             screenshotService: ScreenshotService(presentation: presentation)
         )
-        if let pdfData = service.exportPDF(slides: presentation.slides) {
-            try? pdfData.write(to: url)
+        guard let pdfData = service.exportPDF(slides: presentation.slides) else {
+            presentation.errorMessage = "Failed to generate PDF."
+            isExportingPDF = false
+            return
+        }
+        do {
+            try pdfData.write(to: url)
+        } catch {
+            presentation.errorMessage = "Failed to save PDF: \(error.localizedDescription)"
         }
         isExportingPDF = false
     }
@@ -280,7 +287,11 @@ struct ToolbarView: ToolbarContent {
             slides: presentation.slides,
             theme: presentation.resolvedTheme
         )
-        try? html.write(to: url, atomically: true, encoding: .utf8)
+        do {
+            try html.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            presentation.errorMessage = "Failed to save HTML: \(error.localizedDescription)"
+        }
     }
 
     private func publishGist() {
@@ -327,7 +338,7 @@ struct ToolbarView: ToolbarContent {
                 }
             } catch {
                 await MainActor.run {
-                    publishResult = error.localizedDescription
+                    presentation.errorMessage = "Failed to publish gist: \(error.localizedDescription)"
                     isPublishing = false
                 }
             }
