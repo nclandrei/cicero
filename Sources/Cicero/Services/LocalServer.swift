@@ -64,7 +64,8 @@ final class LocalServer {
                             layout: $0.layout == .default ? nil : $0.layout.rawValue,
                             imageURL: $0.imageURL,
                             videoURL: $0.videoURL,
-                            embedURL: $0.embedURL
+                            embedURL: $0.embedURL,
+                            notes: $0.notes
                         )
                     },
                     currentIndex: self.presentation.currentIndex
@@ -90,7 +91,8 @@ final class LocalServer {
                     layout: slide.layout == .default ? nil : slide.layout.rawValue,
                     imageURL: slide.imageURL,
                     videoURL: slide.videoURL,
-                    embedURL: slide.embedURL
+                    embedURL: slide.embedURL,
+                    notes: slide.notes
                 ))
             }
         }

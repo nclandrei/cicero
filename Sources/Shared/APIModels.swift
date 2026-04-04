@@ -10,8 +10,9 @@ public struct SlideInfo: Codable, Sendable {
     public let imageURL: String?
     public let videoURL: String?
     public let embedURL: String?
+    public let notes: String?
 
-    public init(index: Int, title: String?, content: String, layout: String? = nil, imageURL: String? = nil, videoURL: String? = nil, embedURL: String? = nil) {
+    public init(index: Int, title: String?, content: String, layout: String? = nil, imageURL: String? = nil, videoURL: String? = nil, embedURL: String? = nil, notes: String? = nil) {
         self.index = index
         self.title = title
         self.content = content
@@ -19,6 +20,7 @@ public struct SlideInfo: Codable, Sendable {
         self.imageURL = imageURL
         self.videoURL = videoURL
         self.embedURL = embedURL
+        self.notes = notes
     }
 }
 

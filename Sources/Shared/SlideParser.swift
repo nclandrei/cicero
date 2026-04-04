@@ -27,6 +27,7 @@ public struct Slide: Codable, Identifiable, Sendable {
     public var imageURL: String?
     public var videoURL: String?
     public var embedURL: String?
+    public var notes: String?
 
     public init(id: Int, content: String) {
         let parsed = SlideParser.parseSlideMetadata(content)
@@ -37,9 +38,10 @@ public struct Slide: Codable, Identifiable, Sendable {
         self.imageURL = parsed.imageURL
         self.videoURL = parsed.videoURL
         self.embedURL = parsed.embedURL
+        self.notes = parsed.notes
     }
 
-    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?, videoURL: String? = nil, embedURL: String? = nil) {
+    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?, videoURL: String? = nil, embedURL: String? = nil, notes: String? = nil) {
         self.id = id
         self.content = content
         self.body = body
@@ -47,6 +49,7 @@ public struct Slide: Codable, Identifiable, Sendable {
         self.imageURL = imageURL
         self.videoURL = videoURL
         self.embedURL = embedURL
+        self.notes = notes
     }
 
     public var title: String? {
@@ -131,11 +134,31 @@ public enum SlideParser {
         public let imageURL: String?
         public let videoURL: String?
         public let embedURL: String?
+        public let notes: String?
+    }
+
+    /// Extract speaker notes from a `<!-- notes ... -->` HTML comment block at the end of content.
+    /// Returns the body with the notes block removed, and the notes text (or nil).
+    public static func extractNotes(_ content: String) -> (body: String, notes: String?) {
+        guard let openRange = content.range(of: "<!-- notes\n") else {
+            return (content, nil)
+        }
+        guard let closeRange = content.range(of: "\n-->", range: openRange.upperBound..<content.endIndex) else {
+            return (content, nil)
+        }
+        let notesText = String(content[openRange.upperBound..<closeRange.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = String(content[content.startIndex..<openRange.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (body, notesText.isEmpty ? nil : notesText)
     }
 
     /// Parse per-slide frontmatter (layout:, image:, video:, embed:) from the top of slide content.
     /// Lines like `layout: title` and `image: url` at the very top are consumed.
     public static func parseSlideMetadata(_ content: String) -> SlideMetadata {
+        // First extract notes from content
+        let (contentWithoutNotes, notes) = extractNotes(content)
+
         var layout: SlideLayout = .default
         var imageURL: String? = nil
         var videoURL: String? = nil
@@ -143,7 +166,7 @@ public enum SlideParser {
         var bodyLines: [String] = []
         var inFrontmatter = true
 
-        for line in content.components(separatedBy: "\n") {
+        for line in contentWithoutNotes.components(separatedBy: "\n") {
             if inFrontmatter {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if trimmed.isEmpty {
@@ -179,7 +202,7 @@ public enum SlideParser {
         }
 
         let body = bodyLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        return SlideMetadata(body: body, layout: layout, imageURL: imageURL, videoURL: videoURL, embedURL: embedURL)
+        return SlideMetadata(body: body, layout: layout, imageURL: imageURL, videoURL: videoURL, embedURL: embedURL, notes: notes)
     }
 
     public static func parse(_ markdown: String) -> (metadata: PresentationMetadata, slides: [Slide]) {

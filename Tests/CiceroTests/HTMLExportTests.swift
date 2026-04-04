@@ -246,6 +246,61 @@ struct HTMLExportTests {
         #expect(html.contains("--r-background-color: \(ThemeRegistry.dark.background)"))
     }
 
+    // MARK: - Speaker Notes
+
+    @Test("Slide with notes produces aside element")
+    func slideWithNotesProducesAside() {
+        let slides = [Slide(id: 0, content: "# Hello\n\n<!-- notes\nSpeaker note here\n-->")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("<aside class=\"notes\">"))
+        #expect(html.contains("Speaker note here"))
+    }
+
+    @Test("Slide without notes has no aside")
+    func slideWithoutNotesNoAside() {
+        let slides = [Slide(id: 0, content: "# Hello\n\nJust content")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(!html.contains("<aside class=\"notes\">"))
+    }
+
+    @Test("Notes content is HTML-escaped")
+    func notesContentIsEscaped() {
+        let slides = [Slide(id: 0, content: "# Hello\n\n<!-- notes\nUse <b>bold</b> & \"quotes\"\n-->")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("&lt;b&gt;bold&lt;/b&gt;"))
+        #expect(html.contains("&amp;"))
+    }
+
+    @Test("Notes work with title layout")
+    func notesWithTitleLayout() {
+        let slides = [Slide(id: 0, content: "layout: title\n# Title\n\n<!-- notes\nTitle notes\n-->")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"title-slide\""))
+        #expect(html.contains("<aside class=\"notes\">Title notes</aside>"))
+    }
+
+    @Test("Notes work with two-column layout")
+    func notesWithTwoColumnLayout() {
+        let slides = [Slide(id: 0, content: "layout: two-column\nLeft\n|||\nRight\n\n<!-- notes\nColumn notes\n-->")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"two-column\""))
+        #expect(html.contains("<aside class=\"notes\">Column notes</aside>"))
+    }
+
+    @Test("Notes work with image-left layout")
+    func notesWithImageLayout() {
+        let slides = [Slide(id: 0, content: "layout: image-left\nimage: https://example.com/img.png\n# Caption\n\n<!-- notes\nImage notes\n-->")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"image-layout\""))
+        #expect(html.contains("<aside class=\"notes\">Image notes</aside>"))
+    }
+
     // MARK: - Codable Round-Trip
 
     @Test("ExportHTMLResponse Codable round-trip")

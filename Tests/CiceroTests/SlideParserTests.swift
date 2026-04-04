@@ -378,6 +378,62 @@ struct SlideParserTests {
         #expect(slide.body == "# Title")
     }
 
+    // MARK: - Speaker Notes Tests
+
+    @Test("Parse notes from HTML comment block")
+    func parseNotes() {
+        let content = "# Slide Title\n\nContent here\n\n<!-- notes\nRemember to mention the roadmap.\nAlso discuss the timeline.\n-->"
+        let slide = Slide(id: 0, content: content)
+        #expect(slide.notes == "Remember to mention the roadmap.\nAlso discuss the timeline.")
+        #expect(slide.body == "# Slide Title\n\nContent here")
+    }
+
+    @Test("Notes stripped from body")
+    func notesStrippedFromBody() {
+        let content = "# Hello\n\n<!-- notes\nSpeaker note\n-->"
+        let slide = Slide(id: 0, content: content)
+        #expect(!slide.body.contains("notes"))
+        #expect(!slide.body.contains("<!--"))
+        #expect(!slide.body.contains("-->"))
+        #expect(slide.body == "# Hello")
+    }
+
+    @Test("No notes returns nil")
+    func noNotesReturnsNil() {
+        let slide = Slide(id: 0, content: "# Just a slide\n\nNo notes here")
+        #expect(slide.notes == nil)
+    }
+
+    @Test("Notes round-trip through serialize/parse")
+    func notesRoundTrip() {
+        let md = "# Slide 1\n\nContent\n\n<!-- notes\nMy speaker notes\n-->\n\n---\n\n# Slide 2"
+        let (meta, slides) = SlideParser.parse(md)
+        #expect(slides.count == 2)
+        #expect(slides[0].notes == "My speaker notes")
+        #expect(slides[1].notes == nil)
+
+        let serialized = SlideParser.serialize(metadata: meta, slides: slides)
+        let (_, slides2) = SlideParser.parse(serialized)
+        #expect(slides2[0].notes == "My speaker notes")
+        #expect(slides2[1].notes == nil)
+    }
+
+    @Test("Notes coexist with frontmatter")
+    func notesCoexistWithFrontmatter() {
+        let content = "layout: title\n# Big Title\n\n<!-- notes\nIntro notes\n-->"
+        let slide = Slide(id: 0, content: content)
+        #expect(slide.layout == .title)
+        #expect(slide.notes == "Intro notes")
+        #expect(slide.body == "# Big Title")
+    }
+
+    @Test("Notes with special characters")
+    func notesWithSpecialCharacters() {
+        let content = "# Slide\n\n<!-- notes\nUse <angle brackets> & \"quotes\"\n-->"
+        let slide = Slide(id: 0, content: content)
+        #expect(slide.notes == "Use <angle brackets> & \"quotes\"")
+    }
+
     @Test("Reorder preserves video and embed metadata")
     func reorderPreservesVideoEmbed() {
         let md = """

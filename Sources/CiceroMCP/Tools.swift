@@ -30,7 +30,7 @@ enum CiceroTools {
         ),
         Tool(
             name: "set_slide",
-            description: "Update the content of a specific slide. Supports per-slide layout frontmatter at the top: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL' (for layout: video), 'embed: URL' (for layout: embed). Use '|||' to separate columns in two-column layout.",
+            description: "Update the content of a specific slide. Supports per-slide layout frontmatter at the top: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL' (for layout: video), 'embed: URL' (for layout: embed). Use '|||' to separate columns in two-column layout. Add speaker notes at the end with '<!-- notes\\n...\\n-->'.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
@@ -43,7 +43,7 @@ enum CiceroTools {
         ),
         Tool(
             name: "add_slide",
-            description: "Add a new slide to the presentation. Supports per-slide layout frontmatter: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL', 'embed: URL' as first lines.",
+            description: "Add a new slide to the presentation. Supports per-slide layout frontmatter: 'layout: title|two-column|image-left|image-right|video|embed', 'image: URL', 'video: URL', 'embed: URL' as first lines. Add speaker notes at the end with '<!-- notes\\n...\\n-->'.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
@@ -377,7 +377,11 @@ enum CiceroToolHandler {
         case "get_slide":
             let index = arguments?["index"]?.intValue ?? 0
             let resp: SlideInfo = try await client.get("/slides/\(index)")
-            return textResult(resp.content)
+            var text = resp.content
+            if let notes = resp.notes {
+                text += "\n\nNotes: \(notes)"
+            }
+            return textResult(text)
 
         case "set_slide":
             let index = arguments?["index"]?.intValue ?? 0

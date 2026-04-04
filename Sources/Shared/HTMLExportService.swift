@@ -171,11 +171,16 @@ public enum HTMLExportService {
         }
     }
 
+    static func notesHTML(_ slide: Slide) -> String {
+        guard let notes = slide.notes else { return "" }
+        return "\n<aside class=\"notes\">\(escapeHTML(notes))</aside>"
+    }
+
     static func renderDefaultSlide(_ slide: Slide) -> String {
         return """
         <section data-markdown><textarea data-template>
         \(escapeTextarea(slide.body))
-        </textarea></section>
+        </textarea>\(notesHTML(slide))</section>
         """
     }
 
@@ -183,7 +188,7 @@ public enum HTMLExportService {
         return """
         <section class="title-slide" data-markdown><textarea data-template>
         \(escapeTextarea(slide.body))
-        </textarea></section>
+        </textarea>\(notesHTML(slide))</section>
         """
     }
 
@@ -201,7 +206,7 @@ public enum HTMLExportService {
             <div class="column" data-markdown><textarea data-template>
             \(escapeTextarea(right))
             </textarea></div>
-            </div>
+            </div>\(notesHTML(slide))
             </section>
             """
         }
@@ -222,7 +227,7 @@ public enum HTMLExportService {
             <div class="content" data-markdown><textarea data-template>
             \(contentMarkdown)
             </textarea></div>
-            </div>
+            </div>\(notesHTML(slide))
             </section>
             """
         } else {
@@ -233,7 +238,7 @@ public enum HTMLExportService {
             \(contentMarkdown)
             </textarea></div>
             \(imgTag)
-            </div>
+            </div>\(notesHTML(slide))
             </section>
             """
         }
