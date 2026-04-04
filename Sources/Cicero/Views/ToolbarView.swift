@@ -63,9 +63,12 @@ struct ToolbarView: ToolbarContent {
     @State private var isPublishing = false
     @State private var publishResult: String?
     @State private var isExportingPDF = false
-    @State private var showSignInAlert = false
     @State private var publishedURL: String?
     @State private var showFontPanel = false
+    @State private var isAuthenticating = false
+    @State private var authUserCode: String?
+    @State private var authError: String?
+    @State private var showAuthPopover = false
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -214,34 +217,60 @@ struct ToolbarView: ToolbarContent {
                     Label("Export HTML", systemImage: "globe")
                 }
 
-                Divider()
-
-                Button(action: publishGist) {
-                    if isPublishing {
-                        Label("Publishing...", systemImage: "arrow.up.doc")
-                    } else {
-                        Label("Publish to GitHub Gist", systemImage: "arrow.up.doc")
-                    }
-                }
-                .disabled(isPublishing)
-
                 if let url = publishedURL {
+                    Divider()
+
                     Button(action: {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(url, forType: .string)
                         toastMessage = "URL copied to clipboard"
                     }) {
-                        Label("Copy URL", systemImage: "doc.on.doc")
+                        Label("Copy Link", systemImage: "doc.on.doc")
                     }
                 }
             } label: {
-                Image(systemName: "square.and.arrow.up")
+                Label("Share Link", systemImage: "link")
+            } primaryAction: {
+                shareLink()
             }
-            .help("Share")
-            .alert("Sign in Required", isPresented: $showSignInAlert) {
-                Button("OK") {}
-            } message: {
-                Text("Sign in to GitHub first via Settings (Cmd+,).")
+            .disabled(isPublishing || isAuthenticating)
+            .help("Share Link")
+            .popover(isPresented: $showAuthPopover, arrowEdge: .bottom) {
+                VStack(spacing: 12) {
+                    if let code = authUserCode {
+                        Text(code)
+                            .font(.system(.title, design: .monospaced))
+                            .fontWeight(.bold)
+                            .textSelection(.enabled)
+                        Text("Enter this code on GitHub")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if let error = authError {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                            .font(.title2)
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                        Button("Retry") {
+                            authError = nil
+                            startInlineAuth()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Connecting to GitHub...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(width: 240)
             }
 
             Button(action: {
@@ -294,53 +323,103 @@ struct ToolbarView: ToolbarContent {
         }
     }
 
-    private func publishGist() {
-        guard let auth else {
-            showSignInAlert = true
+    private func shareLink() {
+        guard let auth else { return }
+
+        Task {
+            let token = await auth.token
+            if token != nil {
+                await publishToGist(auth: auth)
+            } else {
+                await MainActor.run {
+                    startInlineAuth()
+                }
+            }
+        }
+    }
+
+    private func startInlineAuth() {
+        guard let auth else { return }
+        isAuthenticating = true
+        authError = nil
+        authUserCode = nil
+        showAuthPopover = true
+
+        Task {
+            do {
+                let deviceCode = try await auth.requestDeviceCode()
+
+                await MainActor.run {
+                    authUserCode = deviceCode.userCode
+                }
+
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(deviceCode.userCode, forType: .string)
+
+                if let url = URL(string: deviceCode.verificationURI) {
+                    NSWorkspace.shared.open(url)
+                }
+
+                _ = try await auth.pollForToken(deviceCode: deviceCode)
+
+                await MainActor.run {
+                    authUserCode = nil
+                    isAuthenticating = false
+                    showAuthPopover = false
+                }
+
+                // Auto-publish after successful auth
+                await publishToGist(auth: auth)
+            } catch {
+                await MainActor.run {
+                    authError = error.localizedDescription
+                    authUserCode = nil
+                    isAuthenticating = false
+                }
+            }
+        }
+    }
+
+    private func publishToGist(auth: GitHubAuth) async {
+        await MainActor.run {
+            isPublishing = true
+            publishResult = nil
+        }
+
+        let token = await auth.token
+        guard let token else {
+            await MainActor.run { isPublishing = false }
             return
         }
 
-        isPublishing = true
-        publishResult = nil
         let markdown = presentation.markdown
         let title = presentation.metadata.title ?? "Presentation"
         let existingGistId = presentation.metadata.gistId
 
-        Task {
-            let token = await auth.token
-            guard let token else {
-                await MainActor.run {
-                    showSignInAlert = true
-                    isPublishing = false
-                }
-                return
+        do {
+            let result = try await GistService.shared.publish(
+                token: token,
+                filename: "\(title).md",
+                content: markdown,
+                description: title,
+                isPublic: false,
+                existingGistId: existingGistId
+            )
+            let ciceroURL = "https://cicero.nicolaeandrei.com/#/g/\(result.gistId)"
+            await MainActor.run {
+                presentation.metadata.gistId = result.gistId
+                publishResult = ciceroURL
+                publishedURL = ciceroURL
+                isPublishing = false
+
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(ciceroURL, forType: .string)
+                toastMessage = "URL copied to clipboard"
             }
-
-            do {
-                let result = try await GistService.shared.publish(
-                    token: token,
-                    filename: "\(title).md",
-                    content: markdown,
-                    description: title,
-                    isPublic: false,
-                    existingGistId: existingGistId
-                )
-                let ciceroURL = "https://cicero.nicolaeandrei.com/#/g/\(result.gistId)"
-                await MainActor.run {
-                    presentation.metadata.gistId = result.gistId
-                    publishResult = ciceroURL
-                    publishedURL = ciceroURL
-                    isPublishing = false
-
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(ciceroURL, forType: .string)
-                    toastMessage = "URL copied to clipboard"
-                }
-            } catch {
-                await MainActor.run {
-                    presentation.errorMessage = "Failed to publish gist: \(error.localizedDescription)"
-                    isPublishing = false
-                }
+        } catch {
+            await MainActor.run {
+                presentation.errorMessage = "Failed to publish: \(error.localizedDescription)"
+                isPublishing = false
             }
         }
     }

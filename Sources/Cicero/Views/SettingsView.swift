@@ -62,7 +62,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("GitHub")
                                 .fontWeight(.medium)
-                            Text("Sign in to publish presentations as Gists")
+                            Text("Sign in to share presentations online")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }

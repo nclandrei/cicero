@@ -186,7 +186,7 @@ enum CiceroTools {
         ),
         Tool(
             name: "publish_gist",
-            description: "Publish the current presentation as a GitHub Gist. Requires GitHub authentication via Settings.",
+            description: "Share the current presentation online and get a shareable link. Publishes as a GitHub Gist. Will prompt for GitHub sign-in if needed.",
             inputSchema: .object([
                 "type": "object",
                 "properties": .object([
@@ -509,7 +509,7 @@ enum CiceroToolHandler {
                 let user = resp.username ?? "unknown"
                 return textResult("Authenticated as \(user)")
             } else {
-                return textResult("Not authenticated. Sign in via Settings (Cmd+,) in the Cicero app.")
+                return textResult("Not authenticated. Sign in to GitHub in the Cicero app to share presentations.")
             }
 
         case "publish_gist":
