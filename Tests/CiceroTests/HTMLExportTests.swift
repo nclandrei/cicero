@@ -196,6 +196,138 @@ struct HTMLExportTests {
         }
     }
 
+    // MARK: - Video Layout
+
+    @Test("Video layout renders video element with controls")
+    func videoLayout() {
+        let slides = [Slide(id: 0, content: "layout: video\nvideo: https://example.com/clip.mp4")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"video-layout\""))
+        #expect(html.contains("<video"))
+        #expect(html.contains("controls"))
+        #expect(html.contains("playsinline"))
+        #expect(html.contains("src=\"https://example.com/clip.mp4\""))
+    }
+
+    @Test("Video layout shows placeholder when URL is missing")
+    func videoLayoutNoURL() {
+        let slides = [Slide(id: 0, content: "layout: video")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"video-layout\""))
+        #expect(html.contains("class=\"media-placeholder\""))
+        #expect(!html.contains("<video"))
+    }
+
+    @Test("Video layout includes text overlay from body")
+    func videoLayoutOverlay() {
+        let slides = [Slide(id: 0, content: "layout: video\nvideo: https://example.com/clip.mp4\nCaption text")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"media-overlay\""))
+        #expect(html.contains("Caption text"))
+    }
+
+    @Test("Video layout omits overlay when body is empty")
+    func videoLayoutNoOverlay() {
+        let slides = [Slide(id: 0, content: "layout: video\nvideo: https://example.com/clip.mp4")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(!html.contains("class=\"media-overlay\""))
+    }
+
+    // MARK: - Embed Layout
+
+    @Test("Embed layout renders iframe")
+    func embedLayout() {
+        let slides = [Slide(id: 0, content: "layout: embed\nembed: https://example.com/widget")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"embed-layout\""))
+        #expect(html.contains("<iframe"))
+        #expect(html.contains("src=\"https://example.com/widget\""))
+        #expect(html.contains("allowfullscreen"))
+    }
+
+    @Test("Embed layout shows placeholder when URL is missing")
+    func embedLayoutNoURL() {
+        let slides = [Slide(id: 0, content: "layout: embed")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"embed-layout\""))
+        #expect(html.contains("class=\"media-placeholder\""))
+        #expect(!html.contains("<iframe"))
+    }
+
+    @Test("Embed layout includes text overlay from body")
+    func embedLayoutOverlay() {
+        let slides = [Slide(id: 0, content: "layout: embed\nembed: https://example.com/widget\nOverlay caption")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("class=\"media-overlay\""))
+        #expect(html.contains("Overlay caption"))
+    }
+
+    @Test("Embed layout normalizes YouTube watch URL to embed")
+    func embedYouTubeNormalization() {
+        let slides = [Slide(id: 0, content: "layout: embed\nembed: https://www.youtube.com/watch?v=dQw4w9WgXcQ")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\""))
+        #expect(!html.contains("watch?v="))
+    }
+
+    @Test("Embed layout normalizes youtu.be shortlink to embed")
+    func embedYouTubeShortlink() {
+        let slides = [Slide(id: 0, content: "layout: embed\nembed: https://youtu.be/dQw4w9WgXcQ")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\""))
+    }
+
+    @Test("Embed layout passes through already-embed YouTube URL")
+    func embedYouTubeAlreadyEmbed() {
+        let slides = [Slide(id: 0, content: "layout: embed\nembed: https://www.youtube.com/embed/dQw4w9WgXcQ")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains("src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\""))
+    }
+
+    // MARK: - YouTube URL Normalization
+
+    @Test("normalizeYouTubeURLString converts watch URL")
+    func normalizeYouTubeWatch() {
+        let result = HTMLExportService.normalizeYouTubeURLString("https://www.youtube.com/watch?v=abc123")
+        #expect(result == "https://www.youtube.com/embed/abc123")
+    }
+
+    @Test("normalizeYouTubeURLString converts shortlink")
+    func normalizeYouTubeShortlink() {
+        let result = HTMLExportService.normalizeYouTubeURLString("https://youtu.be/abc123")
+        #expect(result == "https://www.youtube.com/embed/abc123")
+    }
+
+    @Test("normalizeYouTubeURLString passes through non-YouTube URLs")
+    func normalizeNonYouTube() {
+        let url = "https://figma.com/embed/xyz"
+        let result = HTMLExportService.normalizeYouTubeURLString(url)
+        #expect(result == url)
+    }
+
+    // MARK: - CSS for Video/Embed
+
+    @Test("CSS includes video-layout and embed-layout styles")
+    func cssIncludesMediaStyles() {
+        let slides = [Slide(id: 0, content: "# Hello")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        #expect(html.contains(".video-layout"))
+        #expect(html.contains(".embed-layout"))
+        #expect(html.contains(".media-overlay"))
+        #expect(html.contains(".media-placeholder"))
+    }
+
     // MARK: - Content Preservation
 
     @Test("Code blocks are preserved in output")

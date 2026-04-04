@@ -151,6 +151,55 @@ public enum HTMLExportService {
             flex: 1;
             min-width: 0;
         }
+        .video-layout, .embed-layout {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-layout video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .embed-layout iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .media-overlay {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            padding: 20px 40px;
+            color: var(--r-main-color);
+            font-size: 1.2em;
+            text-align: center;
+            max-width: 80%;
+        }
+        .media-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            height: 100%;
+            background: var(--r-code-background);
+        }
+        .media-placeholder .icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+        .media-placeholder .label {
+            font-size: 0.8em;
+            opacity: 0.5;
+        }
         """
     }
 
@@ -166,7 +215,11 @@ public enum HTMLExportService {
             return renderImageSlide(slide, imageFirst: true)
         case .imageRight:
             return renderImageSlide(slide, imageFirst: false)
-        default:
+        case .video:
+            return renderVideoSlide(slide)
+        case .embed:
+            return renderEmbedSlide(slide)
+        case .default:
             return renderDefaultSlide(slide)
         }
     }
@@ -242,6 +295,89 @@ public enum HTMLExportService {
             </section>
             """
         }
+    }
+
+    static func renderVideoSlide(_ slide: Slide) -> String {
+        let overlay = mediaOverlay(slide.body)
+        guard let videoURL = slide.videoURL, !videoURL.isEmpty else {
+            return """
+            <section>
+            <div class="video-layout">
+            <div class="media-placeholder">
+            <div class="icon">&#9654;&#x20E0;</div>
+            <div class="label">\(escapeHTML(slide.videoURL ?? "No video URL"))</div>
+            </div>
+            \(overlay)
+            </div>
+            </section>
+            """
+        }
+        return """
+        <section>
+        <div class="video-layout">
+        <video controls playsinline src="\(escapeHTML(videoURL))"></video>
+        \(overlay)
+        </div>
+        </section>
+        """
+    }
+
+    static func renderEmbedSlide(_ slide: Slide) -> String {
+        let overlay = mediaOverlay(slide.body)
+        guard let embedURL = slide.embedURL, !embedURL.isEmpty else {
+            return """
+            <section>
+            <div class="embed-layout">
+            <div class="media-placeholder">
+            <div class="icon">&#127760;</div>
+            <div class="label">\(escapeHTML(slide.embedURL ?? "No embed URL"))</div>
+            </div>
+            \(overlay)
+            </div>
+            </section>
+            """
+        }
+        let normalizedURL = normalizeYouTubeURLString(embedURL)
+        return """
+        <section>
+        <div class="embed-layout">
+        <iframe src="\(escapeHTML(normalizedURL))" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+        \(overlay)
+        </div>
+        </section>
+        """
+    }
+
+    /// Build a text overlay div from the slide body, or empty string if body is blank.
+    static func mediaOverlay(_ body: String) -> String {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return "<div class=\"media-overlay\">\(escapeHTML(trimmed))</div>"
+    }
+
+    /// Normalize YouTube watch/shortlink URLs to embeddable form.
+    /// Matches the logic in WebEmbedView.swift's `normalizeYouTubeURL`.
+    static func normalizeYouTubeURLString(_ urlString: String) -> String {
+        guard let url = URL(string: urlString),
+              let host = url.host?.lowercased() else { return urlString }
+
+        // youtu.be/ID shortlinks
+        if host == "youtu.be" {
+            let videoID = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if !videoID.isEmpty {
+                return "https://www.youtube.com/embed/\(videoID)"
+            }
+        }
+
+        // youtube.com/watch?v=ID
+        if (host == "www.youtube.com" || host == "youtube.com"),
+           url.path == "/watch",
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let videoID = components.queryItems?.first(where: { $0.name == "v" })?.value {
+            return "https://www.youtube.com/embed/\(videoID)"
+        }
+
+        return urlString
     }
 
     // MARK: - Escaping
