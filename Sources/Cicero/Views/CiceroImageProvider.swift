@@ -168,7 +168,7 @@ private struct CiceroImageView: View {
 
 // MARK: - ResizableImageView
 
-/// Displays an image with corner drag handles for interactive resizing.
+/// Displays an image with corner drag handles and a width editor for interactive resizing.
 struct ResizableImageView: View {
     let image: NSImage
     let initialWidth: CGFloat?
@@ -177,9 +177,24 @@ struct ResizableImageView: View {
     @State private var currentWidth: CGFloat = 400
     @State private var isHovering = false
     @State private var dragStartWidth: CGFloat = 0
+    @State private var isEditingWidth = false
+    @State private var widthText = ""
 
     private let minWidth: CGFloat = 100
     private let maxWidth: CGFloat = 1600
+
+    private struct Preset: Identifiable {
+        let id: String
+        let label: String
+        let width: CGFloat
+    }
+
+    private let presets: [Preset] = [
+        Preset(id: "s", label: "S", width: 200),
+        Preset(id: "m", label: "M", width: 400),
+        Preset(id: "l", label: "L", width: 800),
+        Preset(id: "xl", label: "XL", width: 1200),
+    ]
 
     var body: some View {
         let aspectRatio = image.size.width > 0 ? image.size.height / image.size.width : 1.0
@@ -189,7 +204,7 @@ struct ResizableImageView: View {
             .aspectRatio(contentMode: .fit)
             .frame(width: currentWidth, height: currentWidth * aspectRatio)
             .overlay {
-                if isHovering {
+                if isHovering || isEditingWidth {
                     // Corner drag handles
                     GeometryReader { geo in
                         let handleSize: CGFloat = 12
@@ -228,10 +243,98 @@ struct ResizableImageView: View {
                         .allowsHitTesting(false)
                 }
             }
-            .onHover { isHovering = $0 }
+            .overlay(alignment: .bottom) {
+                if isHovering || isEditingWidth {
+                    widthBar
+                        .offset(y: 28)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .onHover { hovering in
+                if !hovering && !isEditingWidth {
+                    isHovering = false
+                } else {
+                    isHovering = hovering
+                }
+            }
             .onAppear {
                 currentWidth = initialWidth ?? min(image.size.width, maxWidth)
                 dragStartWidth = currentWidth
             }
+    }
+
+    private var widthBar: some View {
+        HStack(spacing: 6) {
+            ForEach(presets) { preset in
+                Button {
+                    applyWidth(preset.width)
+                } label: {
+                    Text(preset.label)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(
+                            abs(currentWidth - preset.width) < 10 ? Color.white : Color.secondary
+                        )
+                        .frame(width: 24, height: 20)
+                        .background(
+                            abs(currentWidth - preset.width) < 10
+                                ? Color.accentColor
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 4)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider()
+                .frame(height: 14)
+
+            if isEditingWidth {
+                TextField("", text: $widthText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .frame(width: 40)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { commitWidthEdit() }
+                    .onExitCommand { cancelWidthEdit() }
+
+                Text("px")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    widthText = "\(Int(currentWidth))"
+                    isEditingWidth = true
+                } label: {
+                    Text("\(Int(currentWidth))px")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+    }
+
+    private func applyWidth(_ width: CGFloat) {
+        let clamped = max(minWidth, min(maxWidth, width))
+        currentWidth = clamped
+        dragStartWidth = clamped
+        isEditingWidth = false
+        onResizeEnd(clamped)
+    }
+
+    private func commitWidthEdit() {
+        if let value = Double(widthText) {
+            applyWidth(CGFloat(value))
+        } else {
+            isEditingWidth = false
+        }
+    }
+
+    private func cancelWidthEdit() {
+        isEditingWidth = false
     }
 }
