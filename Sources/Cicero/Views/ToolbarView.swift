@@ -106,15 +106,45 @@ struct ToolbarView: ToolbarContent {
             }
             .help("Slide overview")
 
-            Picker("Theme", selection: $selectedTheme) {
-                ForEach(AppTheme.allCases, id: \.self) { theme in
-                    Text(theme.rawValue.capitalized).tag(theme)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 160)
-
+            // MARK: Appearance Menu
             Menu {
+                // Mode section
+                ForEach(AppTheme.allCases, id: \.self) { theme in
+                    Button(action: { selectedTheme = theme }) {
+                        HStack {
+                            Text(theme.rawValue.capitalized)
+                            if selectedTheme == theme {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Color theme section
+                ForEach(ThemeRegistry.builtIn, id: \.name) { theme in
+                    Button(action: { presentation.setTheme(theme.name) }) {
+                        HStack {
+                            Text(theme.name.capitalized)
+                            if presentation.metadata.theme == theme.name {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+                Button(action: { presentation.setTheme("auto") }) {
+                    HStack {
+                        Text("Auto (System)")
+                        if presentation.metadata.theme == "auto" {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Font section
                 Button(action: { presentation.setFont(nil) }) {
                     HStack {
                         Text("System Default")
@@ -126,7 +156,6 @@ struct ToolbarView: ToolbarContent {
 
                 if let customFont = presentation.metadata.font,
                    !curatedFonts.contains(customFont) {
-                    Divider()
                     Button(action: { presentation.setFont(customFont) }) {
                         HStack {
                             Text(customFont)
@@ -136,7 +165,6 @@ struct ToolbarView: ToolbarContent {
                     }
                 }
 
-                Divider()
                 ForEach(curatedFonts, id: \.self) { fontName in
                     Button(action: { presentation.setFont(fontName) }) {
                         HStack {
@@ -149,15 +177,14 @@ struct ToolbarView: ToolbarContent {
                     }
                 }
 
-                Divider()
                 Button("Other...") {
                     showFontPanel = true
                     NSFontPanel.shared.orderFront(nil)
                 }
             } label: {
-                Image(systemName: "textformat")
+                Image(systemName: "paintbrush")
             }
-            .help("Slide font")
+            .help("Appearance")
             .background {
                 if showFontPanel {
                     FontPanelBridge { familyName in
@@ -172,63 +199,45 @@ struct ToolbarView: ToolbarContent {
                 }
             }
 
+            // MARK: Share Menu
             Menu {
-                ForEach(ThemeRegistry.builtIn, id: \.name) { theme in
-                    Button(action: { presentation.setTheme(theme.name) }) {
-                        HStack {
-                            Text(theme.name.capitalized)
-                            if presentation.metadata.theme == theme.name {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                Button(action: exportPDF) {
+                    if isExportingPDF {
+                        Label("Exporting PDF...", systemImage: "doc.richtext")
+                    } else {
+                        Label("Export PDF", systemImage: "doc.richtext")
                     }
                 }
+                .disabled(isExportingPDF)
+
+                Button(action: exportHTML) {
+                    Label("Export HTML", systemImage: "globe")
+                }
+
                 Divider()
-                Button("Auto (System)") {
-                    presentation.setTheme("auto")
+
+                Button(action: publishGist) {
+                    if isPublishing {
+                        Label("Publishing...", systemImage: "arrow.up.doc")
+                    } else {
+                        Label("Publish to GitHub Gist", systemImage: "arrow.up.doc")
+                    }
+                }
+                .disabled(isPublishing)
+
+                if let url = publishedURL {
+                    Button(action: {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(url, forType: .string)
+                        toastMessage = "URL copied to clipboard"
+                    }) {
+                        Label("Copy URL", systemImage: "doc.on.doc")
+                    }
                 }
             } label: {
-                Image(systemName: "paintpalette")
+                Image(systemName: "square.and.arrow.up")
             }
-            .help("Slide theme")
-
-            Button(action: exportPDF) {
-                if isExportingPDF {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "doc.richtext")
-                }
-            }
-            .disabled(isExportingPDF)
-            .help("Export PDF")
-
-            Button(action: exportHTML) {
-                Image(systemName: "globe")
-            }
-            .help("Export HTML")
-
-            if let url = publishedURL {
-                Button(action: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(url, forType: .string)
-                    toastMessage = "URL copied to clipboard"
-                }) {
-                    Image(systemName: "doc.on.doc")
-                }
-                .help(url)
-            }
-
-            Button(action: publishGist) {
-                if isPublishing {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.up.doc")
-                }
-            }
-            .disabled(isPublishing)
-            .help(publishResult ?? "Publish to GitHub Gist")
+            .help("Share")
             .alert("Sign in Required", isPresented: $showSignInAlert) {
                 Button("OK") {}
             } message: {
