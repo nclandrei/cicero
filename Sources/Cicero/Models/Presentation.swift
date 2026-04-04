@@ -18,6 +18,7 @@ final class Presentation {
     var isPresenting: Bool = false
     var isDirty: Bool = false
     var imageStore: ImageStore?
+    var errorMessage: String?
     let editHistory = EditHistory()
 
     // MARK: - Presenter Timer

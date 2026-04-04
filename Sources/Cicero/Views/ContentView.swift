@@ -73,6 +73,14 @@ struct ContentView: View {
             }
         }
         .animation(.spring(duration: 0.4), value: toastMessage)
+        .alert("Error", isPresented: Binding(
+            get: { presentation.errorMessage != nil },
+            set: { if !$0 { presentation.errorMessage = nil } }
+        )) {
+            Button("OK") { presentation.errorMessage = nil }
+        } message: {
+            Text(presentation.errorMessage ?? "")
+        }
         .onChange(of: presentation.isDirty) { _, isDirty in
             if isDirty {
                 scheduleAutoSave()
@@ -144,7 +152,10 @@ struct ContentView: View {
 
     private func insertImage(data: Data, name: String?) {
         ensureFileIsSaved {
-            guard let snippet = presentation.addImage(data, name: name) else { return }
+            guard let snippet = presentation.addImage(data, name: name) else {
+                presentation.errorMessage = "Failed to save image. Check that the assets folder is writable."
+                return
+            }
             let currentIdx = presentation.currentIndex
             guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
             let currentContent = presentation.slides[currentIdx].content
@@ -162,7 +173,12 @@ struct ContentView: View {
         panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
         if panel.runModal() == .OK, let url = panel.url {
             presentation.filePath = url
-            try? presentation.save()
+            do {
+                try presentation.save()
+            } catch {
+                presentation.errorMessage = "Failed to save file: \(error.localizedDescription)"
+                return
+            }
             action()
         }
     }
@@ -182,7 +198,11 @@ struct ContentView: View {
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             if presentation.filePath != nil {
-                try? presentation.save()
+                do {
+                    try presentation.save()
+                } catch {
+                    toastMessage = "Auto-save failed: \(error.localizedDescription)"
+                }
             }
         }
     }

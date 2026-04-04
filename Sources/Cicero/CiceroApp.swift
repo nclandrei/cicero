@@ -96,7 +96,7 @@ struct CiceroApp: App {
                                 }
                             }
                         } catch {
-                            print("Failed to open file: \(error)")
+                            presentation.errorMessage = "Failed to open file: \(error.localizedDescription)"
                         }
                     }
                 }
@@ -112,8 +112,14 @@ struct CiceroApp: App {
                         let service = PDFExportService(
                             screenshotService: ScreenshotService(presentation: presentation)
                         )
-                        if let pdfData = service.exportPDF(slides: presentation.slides) {
-                            try? pdfData.write(to: url)
+                        guard let pdfData = service.exportPDF(slides: presentation.slides) else {
+                            presentation.errorMessage = "Failed to generate PDF."
+                            return
+                        }
+                        do {
+                            try pdfData.write(to: url)
+                        } catch {
+                            presentation.errorMessage = "Failed to save PDF: \(error.localizedDescription)"
                         }
                     }
                 }
@@ -129,7 +135,11 @@ struct CiceroApp: App {
                             slides: presentation.slides,
                             theme: presentation.resolvedTheme
                         )
-                        try? html.write(to: url, atomically: true, encoding: .utf8)
+                        do {
+                            try html.write(to: url, atomically: true, encoding: .utf8)
+                        } catch {
+                            presentation.errorMessage = "Failed to save HTML: \(error.localizedDescription)"
+                        }
                     }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .option])
@@ -137,16 +147,20 @@ struct CiceroApp: App {
                 Divider()
 
                 Button("Save") {
-                    if presentation.filePath != nil {
-                        try? presentation.save()
-                    } else {
-                        let panel = NSSavePanel()
-                        panel.allowedContentTypes = [.init(filenameExtension: "md")!]
-                        panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
-                        if panel.runModal() == .OK, let url = panel.url {
-                            presentation.filePath = url
-                            try? presentation.save()
+                    do {
+                        if presentation.filePath != nil {
+                            try presentation.save()
+                        } else {
+                            let panel = NSSavePanel()
+                            panel.allowedContentTypes = [.init(filenameExtension: "md")!]
+                            panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
+                            if panel.runModal() == .OK, let url = panel.url {
+                                presentation.filePath = url
+                                try presentation.save()
+                            }
                         }
+                    } catch {
+                        presentation.errorMessage = "Failed to save file: \(error.localizedDescription)"
                     }
                 }
                 .keyboardShortcut("s")

@@ -83,7 +83,10 @@ struct SlideEditorView: View {
 
     private func insertImage(data: Data, name: String?) {
         ensureFileIsSaved { [presentation] in
-            guard let snippet = presentation.addImage(data, name: name) else { return }
+            guard let snippet = presentation.addImage(data, name: name) else {
+                presentation.errorMessage = "Failed to save image. Check that the assets folder is writable."
+                return
+            }
             let currentIdx = presentation.currentIndex
             guard currentIdx >= 0 && currentIdx < presentation.slides.count else { return }
             let currentContent = presentation.slides[currentIdx].content
@@ -101,7 +104,12 @@ struct SlideEditorView: View {
         panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".md"
         if panel.runModal() == .OK, let url = panel.url {
             presentation.filePath = url
-            try? presentation.save()
+            do {
+                try presentation.save()
+            } catch {
+                presentation.errorMessage = "Failed to save file: \(error.localizedDescription)"
+                return
+            }
             action()
         }
     }
