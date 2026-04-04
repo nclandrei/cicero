@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A custom NSViewRepresentable wrapping NSTextView that intercepts image file drops
-/// instead of letting NSTextView insert the raw file path as text.
 struct CodeEditorView: NSViewRepresentable {
     @Binding var text: String
     var onImageDrop: ((_ data: Data, _ name: String?) -> Void)?
@@ -17,12 +15,14 @@ struct CodeEditorView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
 
+        let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+
         let textView = DropInterceptingTextView()
         textView.isEditable = true
         textView.isSelectable = true
         textView.allowsUndo = true
         textView.isRichText = false
-        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.font = font
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -30,7 +30,6 @@ struct CodeEditorView: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 8, height: 8)
         textView.backgroundColor = .textBackgroundColor
 
-        // Make text view resize with scroll view
         textView.autoresizingMask = [.width]
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
@@ -38,6 +37,7 @@ struct CodeEditorView: NSViewRepresentable {
 
         textView.delegate = context.coordinator
         let coordinator = context.coordinator
+        coordinator.baseFont = font
         textView.onImageDrop = { data, name in
             coordinator.parent.onImageDrop?(data, name)
         }
@@ -50,46 +50,76 @@ struct CodeEditorView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
-        // Avoid feedback loop: only update if text actually differs
         if textView.string != text {
             let selectedRanges = textView.selectedRanges
             textView.string = text
             textView.selectedRanges = selectedRanges
         }
+        // Apply highlighting after every update
+        context.coordinator.applyHighlighting()
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: CodeEditorView
         weak var textView: NSTextView?
-        private var isUpdating = false
+        var baseFont: NSFont = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        private let highlighter = MarkdownHighlighter()
+        private var highlightWorkItem: DispatchWorkItem?
 
         init(_ parent: CodeEditorView) {
             self.parent = parent
         }
 
         func textDidChange(_ notification: Notification) {
-            guard !isUpdating, let textView = notification.object as? NSTextView else { return }
-            isUpdating = true
+            guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
-            isUpdating = false
+            scheduleHighlighting()
+        }
+
+        func scheduleHighlighting() {
+            highlightWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.applyHighlighting()
+            }
+            highlightWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+        }
+
+        func applyHighlighting() {
+            guard let textView, let storage = textView.textStorage, storage.length > 0 else { return }
+
+            // Switch to rich text mode to enable attribute-based coloring
+            if !textView.isRichText {
+                textView.isRichText = true
+                textView.usesFontPanel = false
+                textView.usesRuler = false
+                textView.isAutomaticLinkDetectionEnabled = false
+            }
+
+            highlighter.isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            highlighter.baseFont = baseFont
+            highlighter.highlight(in: textView)
         }
     }
 }
 
-/// NSTextView subclass that intercepts image file drops and delegates them
-/// to our handler instead of inserting the file path as text.
 class DropInterceptingTextView: NSTextView {
     var onImageDrop: ((_ data: Data, _ name: String?) -> Void)?
 
     private let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "tiff", "tif", "bmp", "webp", "heic"]
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        if let coordinator = delegate as? CodeEditorView.Coordinator {
+            coordinator.applyHighlighting()
+        }
+    }
+
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         guard let pasteboard = sender.draggingPasteboard.propertyList(forType: .init("NSFilenamesPboardType")) as? [String] else {
-            // Not a file drop — let NSTextView handle it (e.g. text drag)
             return super.performDragOperation(sender)
         }
 
-        // Check if any dropped file is an image
         let imageFiles = pasteboard.filter { path in
             let ext = (path as NSString).pathExtension.lowercased()
             return imageExtensions.contains(ext)
@@ -105,12 +135,10 @@ class DropInterceptingTextView: NSTextView {
             return true
         }
 
-        // Not an image file — fall back to default behavior
         return super.performDragOperation(sender)
     }
 
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        // Check if this is an image file drag
         if let files = sender.draggingPasteboard.propertyList(forType: .init("NSFilenamesPboardType")) as? [String] {
             let hasImage = files.contains { path in
                 let ext = (path as NSString).pathExtension.lowercased()
