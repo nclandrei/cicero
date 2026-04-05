@@ -184,7 +184,8 @@ struct CiceroApp: App {
                 authUserCode: $authUserCode,
                 authError: $authError,
                 onSignIn: { startSignIn() },
-                onSignOut: { signOut() }
+                onSignOut: { signOut() },
+                updater: updater
             )
         }
 

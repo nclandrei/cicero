@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Binding var authError: String?
     var onSignIn: () -> Void
     var onSignOut: () -> Void
+    @ObservedObject var updater: UpdaterController
 
     var body: some View {
         Form {
@@ -86,8 +87,57 @@ struct SettingsView: View {
             } header: {
                 Label("Account", systemImage: "person.circle")
             }
+
+            Section {
+                if updater.isEnabled {
+                    Toggle("Automatically check for updates", isOn: $updater.automaticallyChecksForUpdates)
+                    Toggle("Automatically download updates", isOn: $updater.automaticallyDownloadsUpdates)
+                        .disabled(!updater.automaticallyChecksForUpdates)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Check Now")
+                                .fontWeight(.medium)
+                            Text(lastCheckedText)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("Check for Updates") { updater.checkForUpdates() }
+                            .controlSize(.regular)
+                            .disabled(!updater.canCheckForUpdates)
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Updates unavailable")
+                                .fontWeight(.medium)
+                            Text("Automatic updates require the released app. Reinstall from the official download to enable.")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                    }
+                }
+            } header: {
+                Label("Software Update", systemImage: "arrow.down.circle")
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 180)
+        .frame(width: 480)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var lastCheckedText: String {
+        guard let date = updater.lastUpdateCheckDate else {
+            return "Has not checked yet"
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Last checked \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 }
