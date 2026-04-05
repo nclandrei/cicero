@@ -41,6 +41,9 @@ private struct CiceroImageRouter: View {
             InlineVideoPlayerView(url: url, baseDirectory: baseDirectory)
         } else if let url, isEmbedURL(url) {
             InlineWebEmbedView(url: url)
+        } else if let url, isPositionedURL(url) {
+            // Rendered separately as an overlay; suppress inline rendering.
+            EmptyView()
         } else {
             CiceroImageView(
                 url: url,
@@ -49,6 +52,19 @@ private struct CiceroImageRouter: View {
                 onResize: onResize
             )
         }
+    }
+
+    private func isPositionedURL(_ url: URL) -> Bool {
+        guard let fragment = url.fragment else { return false }
+        var hasX = false
+        var hasY = false
+        for param in fragment.split(separator: "&") {
+            let parts = param.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            if parts[0] == "x", Double(parts[1]) != nil { hasX = true }
+            if parts[0] == "y", Double(parts[1]) != nil { hasY = true }
+        }
+        return hasX && hasY
     }
 
     private func isVideoURL(_ url: URL) -> Bool {

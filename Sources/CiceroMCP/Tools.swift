@@ -220,6 +220,22 @@ enum CiceroTools {
             ]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
+        Tool(
+            name: "set_image_transform",
+            description: "Move or resize a positioned image on a slide. Coordinates (x, y, width) are in the 960×540 reference space. Each parameter is optional — omitted values are left unchanged.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "slide_index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "path": .object(["type": "string", "description": "Image path as it appears in the markdown (e.g. 'assets/image-1.png')"]),
+                    "x": .object(["type": "number", "description": "Horizontal offset in the 960×540 reference space (pixels from left edge)"]),
+                    "y": .object(["type": "number", "description": "Vertical offset in the 960×540 reference space (pixels from top edge)"]),
+                    "width": .object(["type": "number", "description": "Image width in the 960×540 reference space (pixels)"]),
+                ]),
+                "required": .array([.string("slide_index"), .string("path")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
 
         // MARK: - Theming
 
@@ -532,6 +548,21 @@ enum CiceroToolHandler {
             )
             return textResult("Image stored at \(resp.relativePath). Insert this markdown into a slide:\n\(resp.markdownSnippet)")
 
+        case "set_image_transform":
+            let slideIndex = arguments?["slide_index"]?.intValue ?? 0
+            let path = arguments?["path"]?.stringValue ?? ""
+            let req = SetImageTransformRequest(
+                path: path,
+                x: arguments?["x"]?.doubleValue,
+                y: arguments?["y"]?.doubleValue,
+                width: arguments?["width"]?.doubleValue
+            )
+            let _: SuccessResponse = try await client.put(
+                "/slides/\(slideIndex)/image-transform",
+                body: req
+            )
+            return textResult("Image transform updated on slide \(slideIndex + 1).")
+
         case "list_themes":
             let resp: ThemeListResponse = try await client.get("/themes")
             var text = "Available themes (\(resp.themes.count)):\n\n"
@@ -688,6 +719,15 @@ extension Value {
     var boolValue: Bool? {
         switch self {
         case .bool(let b): return b
+        default: return nil
+        }
+    }
+
+    var doubleValue: Double? {
+        switch self {
+        case .double(let v): return v
+        case .int(let v): return Double(v)
+        case .string(let s): return Double(s)
         default: return nil
         }
     }

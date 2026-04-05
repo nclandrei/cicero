@@ -11,16 +11,19 @@ struct SlideView: View {
     var isInteractive: Bool = false
     var isPresenting: Bool = false
     var onImageResize: ((String, CGFloat) -> Void)? = nil
+    var onImageTransform: ((String, CGFloat, CGFloat, CGFloat) -> Void)? = nil
 
     var body: some View {
         GeometryReader { geo in
             let size = slideSize(fitting: geo.size)
             let scaledTheme = isPresenting ? theme.scaled(size.width / 960) : theme
+            let scale = size.width / 960
             ZStack {
                 scaledTheme.background
 
                 if let slide {
                     slideContent(for: slide, theme: scaledTheme)
+                    positionedImagesOverlay(body: slide.body, scale: scale)
                 } else {
                     Text("No Slides")
                         .font(.title2)
@@ -62,6 +65,27 @@ struct SlideView: View {
                     .padding(60 * theme.fontScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func positionedImagesOverlay(body: String, scale: CGFloat) -> some View {
+        let refs = PositionedImageParser.parse(body)
+        if !refs.isEmpty {
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(refs.enumerated()), id: \.offset) { _, ref in
+                    PositionedImageOverlay(
+                        ref: ref,
+                        baseDirectory: baseDirectory,
+                        scale: scale,
+                        isInteractive: isInteractive,
+                        onTransformEnd: { path, x, y, width in
+                            onImageTransform?(path, x, y, width)
+                        }
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 

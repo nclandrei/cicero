@@ -24,6 +24,9 @@ struct ContentView: View {
                 isInteractive: true,
                 onImageResize: { sourcePath, newWidth in
                     handleImageResize(sourcePath: sourcePath, newWidth: newWidth)
+                },
+                onImageTransform: { sourcePath, x, y, width in
+                    handleImageTransform(sourcePath: sourcePath, x: x, y: y, width: width)
                 }
             )
                 .frame(minWidth: 400, idealWidth: 700)
@@ -120,6 +123,28 @@ struct ContentView: View {
             in: content,
             range: range,
             withTemplate: "](\(sourcePath)#w=\(width))"
+        )
+        if newContent != content {
+            presentation.updateSlide(at: idx, content: newContent)
+        }
+    }
+
+    private func handleImageTransform(sourcePath: String, x: CGFloat, y: CGFloat, width: CGFloat) {
+        let idx = presentation.currentIndex
+        guard idx >= 0 && idx < presentation.slides.count else { return }
+        let content = presentation.slides[idx].content
+
+        // Match `](sourcePath)` or `](sourcePath#…)` and replace with the new fragment.
+        let escaped = NSRegularExpression.escapedPattern(for: sourcePath)
+        let pattern = "\\]\\(\(escaped)(#[^)]*)?\\)"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+        let nsContent = content as NSString
+        let range = NSRange(location: 0, length: nsContent.length)
+        let replacement = "](\(sourcePath)#w=\(Int(width))&x=\(Int(x))&y=\(Int(y)))"
+        let newContent = regex.stringByReplacingMatches(
+            in: content,
+            range: range,
+            withTemplate: replacement
         )
         if newContent != content {
             presentation.updateSlide(at: idx, content: newContent)

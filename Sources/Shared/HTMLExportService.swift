@@ -230,19 +230,52 @@ public enum HTMLExportService {
     }
 
     static func renderDefaultSlide(_ slide: Slide) -> String {
+        let (stripped, overlays) = extractPositionedImages(slide.body)
         return """
         <section data-markdown><textarea data-template>
-        \(escapeTextarea(slide.body))
-        </textarea>\(notesHTML(slide))</section>
+        \(escapeTextarea(stripped))
+        </textarea>\(notesHTML(slide))\(overlays)</section>
         """
     }
 
     static func renderTitleSlide(_ slide: Slide) -> String {
+        let (stripped, overlays) = extractPositionedImages(slide.body)
         return """
         <section class="title-slide" data-markdown><textarea data-template>
-        \(escapeTextarea(slide.body))
-        </textarea>\(notesHTML(slide))</section>
+        \(escapeTextarea(stripped))
+        </textarea>\(notesHTML(slide))\(overlays)</section>
         """
+    }
+
+    /// Strips positioned image syntax from a body and returns the stripped text
+    /// plus an HTML string containing one absolutely-positioned `<div>` per image.
+    /// Returns empty overlay string if no positioned images are found.
+    static func extractPositionedImages(_ body: String) -> (stripped: String, overlays: String) {
+        let refs = PositionedImageParser.parse(body)
+        guard !refs.isEmpty else { return (body, "") }
+
+        // Build stripped body by removing matches in reverse order (so ranges stay valid).
+        let nsBody = NSMutableString(string: body)
+        let sorted = refs.sorted { $0.matchRange.location > $1.matchRange.location }
+        for ref in sorted {
+            nsBody.replaceCharacters(in: ref.matchRange, with: "")
+        }
+
+        // Width/height and positions are in 960×540 reference space. reveal.js slides
+        // are 1920×1080 (see Reveal.initialize), so scale by 2 to map reference → slide.
+        let scale: Double = 1920.0 / 960.0
+        var overlays = ""
+        for ref in refs {
+            let left = Double(ref.x) * scale
+            let top = Double(ref.y) * scale
+            let width = Double(ref.width) * scale
+            let src = escapeHTML(ref.url)
+            let alt = escapeHTML(ref.alt)
+            overlays += "\n<div style=\"position:absolute;left:\(Int(left))px;top:\(Int(top))px;width:\(Int(width))px\">"
+            overlays += "<img src=\"\(src)\" alt=\"\(alt)\" style=\"width:100%;height:auto;display:block\">"
+            overlays += "</div>"
+        }
+        return (nsBody as String, overlays)
     }
 
     static func renderTwoColumnSlide(_ slide: Slide) -> String {

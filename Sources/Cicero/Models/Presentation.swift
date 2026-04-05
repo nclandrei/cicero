@@ -223,13 +223,15 @@ final class Presentation {
         loadMarkdown(sample)
     }
 
-    /// Stores an image and returns the markdown snippet to insert
+    /// Stores an image and returns the markdown snippet to insert.
+    /// Default fragment positions the image as a small draggable overlay
+    /// roughly centered on a 960×540 slide.
     func addImage(_ data: Data, name: String? = nil) -> String? {
         guard let store = imageStore,
               let path = store.storeImage(data, suggestedName: name)
         else { return nil }
         let alt = name ?? "image"
-        return "![\(alt)](\(path))"
+        return "![\(alt)](\(path)#w=400&x=280&y=170)"
     }
 
     // MARK: - Timer

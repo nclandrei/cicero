@@ -158,6 +158,20 @@ public struct AddImageResponse: Codable, Sendable {
     }
 }
 
+public struct SetImageTransformRequest: Codable, Sendable {
+    public let path: String
+    public let x: Double?
+    public let y: Double?
+    public let width: Double?
+
+    public init(path: String, x: Double? = nil, y: Double? = nil, width: Double? = nil) {
+        self.path = path
+        self.x = x
+        self.y = y
+        self.width = width
+    }
+}
+
 public struct AuthStatusResponse: Codable, Sendable {
     public let authenticated: Bool
     public let username: String?

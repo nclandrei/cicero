@@ -38,6 +38,33 @@ struct HTMLExportTests {
         #expect(html.contains("reveal.js@5/plugin/notes/notes.js"))
     }
 
+    // MARK: - Positioned images
+
+    @Test("Positioned image renders as absolutely-positioned div")
+    func positionedImageOverlay() {
+        let slides = [Slide(id: 0, content: "# Hi\n\n![logo](assets/a.png#w=400&x=280&y=170)")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        // 960 → 1920 scaling: 280*2=560, 170*2=340, 400*2=800
+        #expect(html.contains("position:absolute"))
+        #expect(html.contains("left:560px"))
+        #expect(html.contains("top:340px"))
+        #expect(html.contains("width:800px"))
+        #expect(html.contains("src=\"assets/a.png\""))
+        // Positioned image syntax is stripped from the markdown body
+        #expect(!html.contains("assets/a.png#w=400"))
+    }
+
+    @Test("Inline image without x/y is unchanged in HTML export")
+    func inlineImageUnchanged() {
+        let slides = [Slide(id: 0, content: "# Hi\n\n![img](assets/b.png#w=400)")]
+        let html = HTMLExportService.exportHTML(metadata: defaultMetadata, slides: slides, theme: darkTheme)
+
+        // Inline images flow through reveal.js markdown renderer untouched.
+        #expect(html.contains("assets/b.png#w=400"))
+        #expect(!html.contains("position:absolute;left:"))
+    }
+
     @Test("Includes Reveal.initialize with correct dimensions")
     func revealInitialize() {
         let slides = [Slide(id: 0, content: "# Hello")]

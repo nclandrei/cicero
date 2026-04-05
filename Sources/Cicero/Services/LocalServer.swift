@@ -113,6 +113,69 @@ final class LocalServer {
             }
         }
 
+        server.PUT["/slides/:index/image-transform"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index"),
+                  let body: SetImageTransformRequest = self.decodeBody(request)
+            else {
+                return self.jsonError("Invalid request")
+            }
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                let content = self.presentation.slides[index].content
+
+                // Find current image fragment values (if any) for this path.
+                let escaped = NSRegularExpression.escapedPattern(for: body.path)
+                let pattern = "\\]\\(\(escaped)(#[^)]*)?\\)"
+                guard let regex = try? NSRegularExpression(pattern: pattern) else {
+                    return self.jsonError("Failed to build regex")
+                }
+                let nsContent = content as NSString
+                let range = NSRange(location: 0, length: nsContent.length)
+                let matches = regex.matches(in: content, range: range)
+                guard let match = matches.first else {
+                    return self.jsonError("Image '\(body.path)' not found on slide \(index)", status: 404)
+                }
+
+                // Parse existing fragment for defaults when fields are omitted.
+                var existingWidth: Double = 400
+                var existingX: Double = 280
+                var existingY: Double = 170
+                if match.numberOfRanges > 1, match.range(at: 1).location != NSNotFound {
+                    let fragmentWithHash = nsContent.substring(with: match.range(at: 1))
+                    let fragment = fragmentWithHash.hasPrefix("#")
+                        ? String(fragmentWithHash.dropFirst())
+                        : fragmentWithHash
+                    for param in fragment.split(separator: "&") {
+                        let parts = param.split(separator: "=", maxSplits: 1)
+                        guard parts.count == 2, let value = Double(parts[1]) else { continue }
+                        switch parts[0] {
+                        case "w": existingWidth = value
+                        case "x": existingX = value
+                        case "y": existingY = value
+                        default: break
+                        }
+                    }
+                }
+
+                let finalWidth = body.width ?? existingWidth
+                let finalX = body.x ?? existingX
+                let finalY = body.y ?? existingY
+
+                let replacement = "](\(body.path)#w=\(Int(finalWidth))&x=\(Int(finalX))&y=\(Int(finalY)))"
+                let newContent = regex.stringByReplacingMatches(
+                    in: content, range: range, withTemplate: replacement
+                )
+                self.presentation.updateSlide(at: index, content: newContent)
+                return self.jsonResponse(SuccessResponse(
+                    success: true,
+                    message: "Image transform updated on slide \(index)"
+                ))
+            }
+        }
+
         server.POST["/slides"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: AddSlideRequest = self.decodeBody(request) else {
@@ -325,7 +388,7 @@ final class LocalServer {
                     return nil
                 }
                 let alt = body.name ?? "image"
-                let snippet = "![\(alt)](\(relativePath))"
+                let snippet = "![\(alt)](\(relativePath)#w=400&x=280&y=170)"
                 return AddImageResponse(relativePath: relativePath, markdownSnippet: snippet)
             }
             guard let result else {

@@ -66,7 +66,9 @@ color parameters for a custom palette. Use `list_themes` to see all colors.
 ## Key Details
 
 - All slide indices are **0-based**.
-- `add_image` returns a markdown snippet — insert it into a slide with `set_slide`.
+- `add_image` returns a markdown snippet — insert it into a slide with `set_slide`. \
+Images are positioned via `#w=…&x=…&y=…` fragments in the 960×540 reference space. \
+Use `set_image_transform` to move or resize a positioned image.
 - `search_slides` is case-insensitive and returns matching excerpts.
 - `get_status` shows current slide, mode, file path, theme, font, and transition.
 - `save_file` requires a file path (set by `open_file` or a prior save).
