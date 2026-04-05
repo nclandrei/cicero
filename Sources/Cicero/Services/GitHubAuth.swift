@@ -1,10 +1,7 @@
 import Foundation
-import Security
 
 actor GitHubAuth {
     private let clientId: String
-    private let keychainService = "com.andreinicolas.Cicero.github"
-    private let keychainAccount = "access_token"
 
     private(set) var token: String?
     private(set) var username: String?
@@ -66,7 +63,7 @@ actor GitHubAuth {
             switch result {
             case .success(let accessToken):
                 self.token = accessToken
-                saveTokenToKeychain(accessToken)
+                saveTokenToFile(accessToken)
                 self.username = try? await fetchUsername(token: accessToken)
                 return accessToken
             case .pending:
@@ -86,10 +83,7 @@ actor GitHubAuth {
 
     func restoreSession() async {
         if self.token == nil {
-            self.token = Self.loadTokenFromKeychain(
-                service: keychainService,
-                account: keychainAccount
-            )
+            self.token = Self.loadTokenFromFile()
         }
         guard let token = self.token else { return }
         self.username = try? await fetchUsername(token: token)
@@ -98,7 +92,7 @@ actor GitHubAuth {
     func signOut() {
         token = nil
         username = nil
-        deleteTokenFromKeychain()
+        deleteTokenFromFile()
     }
 
     // MARK: - Token Check
@@ -160,43 +154,35 @@ actor GitHubAuth {
         return login
     }
 
-    // MARK: - Keychain
+    // MARK: - File storage
+    //
+    // Token is stored at ~/Library/Application Support/Cicero/github-token
+    // with 0600 perms. Mirrors the approach used by `gh` CLI.
+    // Chose this over Keychain because SecItem ACLs are tied to code signatures,
+    // and debug rebuilds produced constantly-changing signatures → repeated prompts.
 
-    private static func loadTokenFromKeychain(service: String, account: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+    private static func tokenFileURL() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport.appendingPathComponent("Cicero", isDirectory: true).appendingPathComponent("github-token")
     }
 
-    private func saveTokenToKeychain(_ token: String) {
-        deleteTokenFromKeychain()
-
-        let data = token.data(using: .utf8)!
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccount as String: keychainAccount,
-            kSecValueData as String: data,
-        ]
-
-        SecItemAdd(query as CFDictionary, nil)
+    private static func loadTokenFromFile() -> String? {
+        let url = tokenFileURL()
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func deleteTokenFromKeychain() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccount as String: keychainAccount,
-        ]
-        SecItemDelete(query as CFDictionary)
+    private func saveTokenToFile(_ token: String) {
+        let url = Self.tokenFileURL()
+        let dir = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        guard let data = token.data(using: .utf8) else { return }
+        try? data.write(to: url, options: [.atomic])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    private func deleteTokenFromFile() {
+        try? FileManager.default.removeItem(at: Self.tokenFileURL())
     }
 }
 
