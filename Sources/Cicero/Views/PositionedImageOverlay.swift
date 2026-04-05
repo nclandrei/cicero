@@ -46,7 +46,13 @@ struct PositionedImageOverlay: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            // Always-present invisible placeholder so `.onAppear` fires on first render
+            // even before the image loads.
+            Color.clear
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+
             if let nsImage {
                 let aspectRatio = nsImage.size.width > 0
                     ? nsImage.size.height / nsImage.size.width
@@ -93,6 +99,7 @@ struct PositionedImageOverlay: View {
             }
         }
         .onAppear { loadImage() }
+        .onChange(of: ref.url) { _, _ in loadImage() }
         .onChange(of: ref.x) { _, newValue in currentX = newValue; dragStartOrigin.x = newValue }
         .onChange(of: ref.y) { _, newValue in currentY = newValue; dragStartOrigin.y = newValue }
         .onChange(of: ref.width) { _, newValue in currentWidth = newValue; dragStartWidth = newValue }
