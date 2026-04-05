@@ -231,6 +231,61 @@ public enum SlideParser {
         return (metadata, slides)
     }
 
+    /// Map a cursor line number (0-based) in the full markdown source to the slide index
+    /// it belongs to. Accounts for YAML frontmatter and code fences (so `---` inside code
+    /// blocks is not treated as a slide separator). A cursor inside frontmatter or on a
+    /// slide-separator line maps to the slide that *precedes* the separator (slide 0 when
+    /// in frontmatter). Returns 0 for empty input.
+    public static func slideIndex(forLine lineNumber: Int, in markdown: String) -> Int {
+        let lines = markdown.components(separatedBy: "\n")
+        guard !lines.isEmpty else { return 0 }
+        let target = max(0, min(lineNumber, lines.count - 1))
+
+        // Skip YAML frontmatter (leading `---` ... `---`) if present.
+        var i = 0
+        if lines[0].trimmingCharacters(in: .whitespaces) == "---" {
+            for j in 1..<lines.count where lines[j].trimmingCharacters(in: .whitespaces) == "---" {
+                i = j + 1
+                break
+            }
+        }
+
+        // Cursor inside frontmatter always maps to slide 0.
+        if target < i {
+            return 0
+        }
+
+        var slideIdx = 0
+        var currentSlideHasContent = false
+        var inCodeBlock = false
+
+        while i < lines.count {
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let isFence = trimmed.hasPrefix("```")
+            let isSeparator = !inCodeBlock && !isFence && trimmed == "---"
+
+            if target == i {
+                return slideIdx
+            }
+
+            if isFence {
+                inCodeBlock.toggle()
+                currentSlideHasContent = true
+            } else if isSeparator {
+                if currentSlideHasContent {
+                    slideIdx += 1
+                    currentSlideHasContent = false
+                }
+            } else if !trimmed.isEmpty {
+                currentSlideHasContent = true
+            }
+            i += 1
+        }
+
+        return slideIdx
+    }
+
     public static func serialize(metadata: PresentationMetadata, slides: [Slide]) -> String {
         var parts: [String] = []
 

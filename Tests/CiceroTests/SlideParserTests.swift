@@ -83,6 +83,188 @@ struct SlideParserTests {
         #expect(slides[0].content.contains("key: value"))
     }
 
+    // MARK: - slideIndex(forLine:in:)
+
+    @Test("slideIndex maps lines to slides in simple deck")
+    func slideIndexSimple() {
+        let md = """
+        # Slide 1
+
+        Body 1
+
+        ---
+
+        # Slide 2
+
+        Body 2
+
+        ---
+
+        # Slide 3
+        """
+        // Lines:
+        // 0: # Slide 1
+        // 1: (blank)
+        // 2: Body 1
+        // 3: (blank)
+        // 4: ---
+        // 5: (blank)
+        // 6: # Slide 2
+        // 7: (blank)
+        // 8: Body 2
+        // 9: (blank)
+        // 10: ---
+        // 11: (blank)
+        // 12: # Slide 3
+        #expect(SlideParser.slideIndex(forLine: 0, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 2, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 3, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 4, in: md) == 0) // separator stays on prior slide
+        #expect(SlideParser.slideIndex(forLine: 5, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 6, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 8, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 10, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 11, in: md) == 2)
+        #expect(SlideParser.slideIndex(forLine: 12, in: md) == 2)
+    }
+
+    @Test("slideIndex maps lines inside frontmatter to slide 0")
+    func slideIndexFrontmatter() {
+        let md = """
+        ---
+        title: Hi
+        theme: ocean
+        ---
+
+        # Slide 1
+
+        ---
+
+        # Slide 2
+        """
+        // 0: ---
+        // 1: title: Hi
+        // 2: theme: ocean
+        // 3: ---
+        // 4: (blank)
+        // 5: # Slide 1
+        // 6: (blank)
+        // 7: ---
+        // 8: (blank)
+        // 9: # Slide 2
+        #expect(SlideParser.slideIndex(forLine: 0, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 1, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 3, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 4, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 5, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 7, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 8, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 9, in: md) == 1)
+    }
+
+    @Test("slideIndex ignores --- inside code fences")
+    func slideIndexCodeFence() {
+        let md = """
+        # Slide 1
+
+        ```yaml
+        ---
+        key: value
+        ---
+        ```
+
+        ---
+
+        # Slide 2
+        """
+        // 0: # Slide 1
+        // 1: (blank)
+        // 2: ```yaml
+        // 3: ---
+        // 4: key: value
+        // 5: ---
+        // 6: ```
+        // 7: (blank)
+        // 8: ---
+        // 9: (blank)
+        // 10: # Slide 2
+        #expect(SlideParser.slideIndex(forLine: 3, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 4, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 5, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 8, in: md) == 0) // real separator
+        #expect(SlideParser.slideIndex(forLine: 9, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 10, in: md) == 1)
+    }
+
+    @Test("slideIndex clamps out-of-range line numbers")
+    func slideIndexClamping() {
+        let md = """
+        # Slide 1
+
+        ---
+
+        # Slide 2
+        """
+        #expect(SlideParser.slideIndex(forLine: -10, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 999, in: md) == 1)
+    }
+
+    @Test("slideIndex handles empty markdown")
+    func slideIndexEmpty() {
+        #expect(SlideParser.slideIndex(forLine: 0, in: "") == 0)
+        #expect(SlideParser.slideIndex(forLine: 5, in: "") == 0)
+    }
+
+    @Test("slideIndex handles single-slide deck")
+    func slideIndexSingleSlide() {
+        let md = """
+        # Only
+
+        Content
+        """
+        #expect(SlideParser.slideIndex(forLine: 0, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 2, in: md) == 0)
+    }
+
+    @Test("slideIndex handles consecutive separators (empty slide dropped)")
+    func slideIndexConsecutiveSeparators() {
+        let md = """
+        # Slide 1
+
+        ---
+
+        ---
+
+        # Slide 2
+        """
+        // 0: # Slide 1
+        // 1: (blank)
+        // 2: ---
+        // 3: (blank)
+        // 4: ---
+        // 5: (blank)
+        // 6: # Slide 2
+        // Empty "slide" between separators is dropped by splitSlides, so slide count is 2
+        let (_, slides) = SlideParser.parse(md)
+        #expect(slides.count == 2)
+        #expect(SlideParser.slideIndex(forLine: 0, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 2, in: md) == 0) // first separator
+        #expect(SlideParser.slideIndex(forLine: 3, in: md) == 1)
+        #expect(SlideParser.slideIndex(forLine: 4, in: md) == 1) // second separator (no content between, stays)
+        #expect(SlideParser.slideIndex(forLine: 6, in: md) == 1)
+    }
+
+    @Test("slideIndex handles unclosed frontmatter gracefully")
+    func slideIndexUnclosedFrontmatter() {
+        // Leading `---` with no closing `---` — whole thing is content
+        let md = """
+        ---
+        # Slide 1
+        """
+        #expect(SlideParser.slideIndex(forLine: 0, in: md) == 0)
+        #expect(SlideParser.slideIndex(forLine: 1, in: md) == 0)
+    }
+
     @Test("Serialize round-trip preserves metadata")
     func serializeRoundTrip() {
         let md = """

@@ -4,6 +4,7 @@ import SwiftUI
 struct CodeEditorView: NSViewRepresentable {
     @Binding var text: String
     var onImageDrop: ((_ data: Data, _ name: String?) -> Void)?
+    var onCursorLineChange: ((Int) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -74,6 +75,27 @@ struct CodeEditorView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
             scheduleHighlighting()
+            reportCursorLine(textView)
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            reportCursorLine(textView)
+        }
+
+        private var lastReportedLine: Int = -1
+
+        private func reportCursorLine(_ textView: NSTextView) {
+            guard let onCursorLineChange = parent.onCursorLineChange else { return }
+            let selected = textView.selectedRange()
+            let nsString = textView.string as NSString
+            let location = min(selected.location, nsString.length)
+            let prefix = nsString.substring(with: NSRange(location: 0, length: location))
+            let line = prefix.reduce(0) { $1 == "\n" ? $0 + 1 : $0 }
+            if line != lastReportedLine {
+                lastReportedLine = line
+                onCursorLineChange(line)
+            }
         }
 
         func scheduleHighlighting() {

@@ -1,3 +1,4 @@
+import Shared
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -38,6 +39,12 @@ struct SlideEditorView: View {
                 ),
                 onImageDrop: { data, name in
                     insertImage(data: data, name: name)
+                },
+                onCursorLineChange: { line in
+                    let idx = SlideParser.slideIndex(forLine: line, in: presentation.markdown)
+                    if idx != presentation.currentIndex {
+                        presentation.navigate(to: idx)
+                    }
                 }
             )
             .overlay {
