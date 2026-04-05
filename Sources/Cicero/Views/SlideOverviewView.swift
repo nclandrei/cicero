@@ -86,41 +86,40 @@ private struct SlideThumbCard: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                ZStack {
-                    theme.background
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let title = slide.title {
-                            Text(title)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(theme.heading)
-                        }
-                        Text(slide.content.prefix(200))
-                            .font(.system(size: 9))
-                            .foregroundStyle(theme.text.opacity(0.7))
-                            .lineLimit(6)
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                theme.background
+                VStack(alignment: .leading, spacing: 4) {
+                    if let title = slide.title {
+                        Text(title)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(theme.heading)
                     }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    Text(slide.content.prefix(200))
+                        .font(.system(size: 9))
+                        .foregroundStyle(theme.text.opacity(0.7))
+                        .lineLimit(6)
                 }
-                .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isDragTarget ? Color.accentColor :
-                            isSelected ? Color.accentColor.opacity(0.6) : .clear,
-                            lineWidth: isDragTarget ? 3 : 2
-                        )
-                )
-
-                Text("Slide \(index + 1)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(
+                        isDragTarget ? Color.accentColor :
+                        isSelected ? Color.accentColor.opacity(0.6) : .clear,
+                        lineWidth: isDragTarget ? 3 : 2
+                    )
+            )
+
+            Text("Slide \(index + 1)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
         .opacity(isDragging ? 0.4 : 1.0)
         .scaleEffect(isDragTarget ? 1.03 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isDragTarget)
