@@ -18,7 +18,8 @@ struct SlideThumbnailSidebar: View {
                             .id(index)
                     }
                 }
-                .padding(8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
             }
             .onChange(of: presentation.currentIndex) { _, newIndex in
                 withAnimation {
@@ -26,7 +27,6 @@ struct SlideThumbnailSidebar: View {
                 }
             }
         }
-        .frame(width: 180)
     }
 
     private func sidebarThumbnail(slide: Slide, index: Int) -> some View {
