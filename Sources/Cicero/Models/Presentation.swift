@@ -131,6 +131,33 @@ final class Presentation {
         rebuildMarkdown()
     }
 
+    func duplicateSlide(at index: Int) {
+        guard index >= 0 && index < slides.count else { return }
+        let original = slides[index]
+        slides.insert(Slide(id: index + 1, content: original.content), at: index + 1)
+        reindexSlides()
+        currentIndex = index + 1
+        rebuildMarkdown()
+    }
+
+    /// Update the speaker notes for a slide. Inserts, updates, or removes the
+    /// `<!-- notes ... -->` block in the slide's raw content.
+    func updateNotes(at index: Int, notes: String?) {
+        guard index >= 0 && index < slides.count else { return }
+        let slide = slides[index]
+        let (bodyWithoutNotes, _) = SlideParser.extractNotes(slide.content)
+        var newContent = bodyWithoutNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            newContent += "\n\n<!-- notes\n\(notes)\n-->"
+        }
+        updateSlide(at: index, content: newContent)
+    }
+
+    /// Convenience accessor for the current slide's speaker notes.
+    func notesForCurrentSlide() -> String? {
+        currentSlide?.notes
+    }
+
     func addSlide(content: String, after index: Int? = nil) {
         let insertAt = (index ?? slides.count - 1) + 1
         slides.insert(Slide(id: insertAt, content: content), at: min(insertAt, slides.count))

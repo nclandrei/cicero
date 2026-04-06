@@ -9,44 +9,60 @@ struct ContentView: View {
     @State private var autoSaveTask: Task<Void, Never>?
     @State private var checkpointTask: Task<Void, Never>?
     @State private var previewDropTargeted = false
+    @State private var showSidebar = true
+    @State private var showNotes = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HSplitView {
+            if showSidebar {
+                SlideThumbnailSidebar(theme: effectiveTheme)
+                    .frame(minWidth: 140, idealWidth: 180, maxWidth: 240)
+            }
+
             SlideEditorView()
                 .frame(minWidth: 300, idealWidth: 450)
 
-            SlideView(
-                slide: presentation.currentSlide,
-                theme: effectiveTheme,
-                fontFamily: presentation.metadata.font,
-                baseDirectory: presentation.filePath?.deletingLastPathComponent(),
-                isInteractive: true,
-                onImageResize: { sourcePath, newWidth in
-                    handleImageResize(sourcePath: sourcePath, newWidth: newWidth)
-                },
-                onImageTransform: { sourcePath, x, y, width in
-                    handleImageTransform(sourcePath: sourcePath, x: x, y: y, width: width)
-                }
-            )
-                .frame(minWidth: 400, idealWidth: 700)
-                .onDrop(of: [.image, .fileURL], isTargeted: $previewDropTargeted) { providers in
-                    handleImageDrop(providers)
-                    return true
-                }
-                .overlay {
-                    if previewDropTargeted {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.accentColor, lineWidth: 3)
-                            .background(Color.accentColor.opacity(0.1))
-                            .allowsHitTesting(false)
+            VSplitView {
+                SlideView(
+                    slide: presentation.currentSlide,
+                    theme: effectiveTheme,
+                    fontFamily: presentation.metadata.font,
+                    baseDirectory: presentation.filePath?.deletingLastPathComponent(),
+                    isInteractive: true,
+                    onImageResize: { sourcePath, newWidth in
+                        handleImageResize(sourcePath: sourcePath, newWidth: newWidth)
+                    },
+                    onImageTransform: { sourcePath, x, y, width in
+                        handleImageTransform(sourcePath: sourcePath, x: x, y: y, width: width)
                     }
+                )
+                    .frame(minHeight: 200)
+                    .onDrop(of: [.image, .fileURL], isTargeted: $previewDropTargeted) { providers in
+                        handleImageDrop(providers)
+                        return true
+                    }
+                    .overlay {
+                        if previewDropTargeted {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.accentColor, lineWidth: 3)
+                                .background(Color.accentColor.opacity(0.1))
+                                .allowsHitTesting(false)
+                        }
+                    }
+
+                if showNotes {
+                    SpeakerNotesEditor()
                 }
+            }
+            .frame(minWidth: 400, idealWidth: 700)
         }
         .toolbar {
             ToolbarView(
                 selectedTheme: $selectedTheme,
                 showOverview: $showOverview,
+                showSidebar: $showSidebar,
+                showNotes: $showNotes,
                 toastMessage: $toastMessage
             )
         }

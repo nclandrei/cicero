@@ -59,6 +59,8 @@ struct ToolbarView: ToolbarContent {
     @Environment(\.gitHubAuth) private var auth
     @Binding var selectedTheme: AppTheme
     @Binding var showOverview: Bool
+    @Binding var showSidebar: Bool
+    @Binding var showNotes: Bool
     @Binding var toastMessage: String?
     @State private var isPublishing = false
     @State private var publishResult: String?
@@ -104,6 +106,16 @@ struct ToolbarView: ToolbarContent {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
+            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showSidebar.toggle() } }) {
+                Image(systemName: "sidebar.left")
+            }
+            .help("Toggle sidebar")
+
+            Button(action: { showNotes.toggle() }) {
+                Image(systemName: "note.text")
+            }
+            .help("Toggle speaker notes")
+
             Button(action: { showOverview.toggle() }) {
                 Image(systemName: "square.grid.2x2")
             }

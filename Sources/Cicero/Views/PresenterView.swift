@@ -7,6 +7,9 @@ struct PresenterView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @FocusState private var isFocused: Bool
 
+    @State private var currentTool: PresenterTool = .none
+    @State private var drawingStrokes: [DrawingStroke] = []
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -23,22 +26,58 @@ struct PresenterView: View {
                     .id(presentation.currentIndex)
             }
 
-            // Navigation overlay
-            HStack(spacing: 0) {
-                // Left half — previous
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { navigate { presentation.previous() } }
+            // Navigation overlay — only active when no tool is selected
+            if currentTool == .none {
+                HStack(spacing: 0) {
+                    // Left half — previous
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { navigate { presentation.previous() } }
 
-                // Right half — next
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { navigate { presentation.next() } }
+                    // Right half — next
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { navigate { presentation.next() } }
+                }
             }
+
+            // Presenter tools overlay
+            if currentTool != .none {
+                PresenterToolsOverlay(
+                    tool: currentTool,
+                    strokes: $drawingStrokes
+                )
+            }
+
+            // Presenter toolbar (auto-hides)
+            PresenterToolbar(
+                currentTool: $currentTool,
+                onClearDrawings: { drawingStrokes.removeAll() },
+                onExit: {
+                    presentation.isPresenting = false
+                    dismissWindow(id: "presenter")
+                }
+            )
 
             // HUD overlay
             VStack {
                 Spacer()
+
+                // Speaker notes
+                if let notes = presentation.notesForCurrentSlide() {
+                    Text(notes)
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: 700)
+                        .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 8)
+                }
+
                 HStack {
                     // Timer & clock — bottom left
                     HStack(spacing: 8) {
@@ -67,6 +106,7 @@ struct PresenterView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
             }
+            .allowsHitTesting(false)
         }
         .focusable()
         .focused($isFocused)
@@ -97,8 +137,28 @@ struct PresenterView: View {
             return .handled
         }
         .onKeyPress(.escape) {
+            if currentTool != .none {
+                currentTool = .none
+                return .handled
+            }
             presentation.isPresenting = false
             dismissWindow(id: "presenter")
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "p")) { _ in
+            currentTool = currentTool == .pointer ? .none : .pointer
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in
+            currentTool = currentTool == .spotlight ? .none : .spotlight
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "d")) { _ in
+            currentTool = currentTool == .drawing ? .none : .drawing
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "c")) { _ in
+            drawingStrokes.removeAll()
             return .handled
         }
     }
