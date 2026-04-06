@@ -100,6 +100,12 @@ struct ContentView: View {
         } message: {
             Text(presentation.errorMessage ?? "")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSidebar)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) { showSidebar.toggle() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleNotes)) { _ in
+            showNotes.toggle()
+        }
         .onChange(of: presentation.isDirty) { _, isDirty in
             if isDirty {
                 scheduleAutoSave()

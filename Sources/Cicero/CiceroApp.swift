@@ -168,6 +168,20 @@ struct CiceroApp: App {
         }
 
         .commands {
+            CommandGroup(replacing: .sidebar) {
+                Button("Toggle Sidebar") {
+                    NotificationCenter.default.post(name: .toggleSidebar, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .option])
+
+                Button("Toggle Speaker Notes") {
+                    NotificationCenter.default.post(name: .toggleNotes, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+            }
+        }
+
+        .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates...") {
                     updater.checkForUpdates()

@@ -714,4 +714,6 @@ final class LocalServer {
 extension Notification.Name {
     static let startPresentation = Notification.Name("cicero.startPresentation")
     static let stopPresentation = Notification.Name("cicero.stopPresentation")
+    static let toggleSidebar = Notification.Name("cicero.toggleSidebar")
+    static let toggleNotes = Notification.Name("cicero.toggleNotes")
 }

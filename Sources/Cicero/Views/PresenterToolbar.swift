@@ -5,7 +5,7 @@ struct PresenterToolbar: View {
     let onClearDrawings: () -> Void
     let onExit: () -> Void
 
-    @State private var isVisible = false
+    @State private var isVisible = true
     @State private var hideTask: Task<Void, Never>?
 
     var body: some View {
@@ -42,11 +42,20 @@ struct PresenterToolbar: View {
                 .padding(.vertical, 8)
                 .background(.black.opacity(0.6), in: Capsule())
                 .transition(.opacity.combined(with: .move(edge: .top)))
+            } else {
+                // Persistent hint pill — shows when toolbar is hidden
+                Capsule()
+                    .fill(.white.opacity(0.15))
+                    .frame(width: 40, height: 4)
+                    .onTapGesture { showToolbar() }
             }
 
             Spacer()
         }
         .padding(.top, 16)
+        .onAppear {
+            scheduleHide()
+        }
         .onContinuousHover { phase in
             switch phase {
             case .active:
