@@ -127,6 +127,7 @@ struct MCPIntegrationTests {
             "set_image_transform",
             "get_font", "set_font", "get_transition", "set_transition",
             "save_file", "get_markdown",
+            "get_notes", "set_notes",
         ]
 
         let toolNames = Set(tools.compactMap { $0["name"] as? String })
@@ -562,6 +563,58 @@ struct MCPIntegrationTests {
         let copy = try Self.client.callTool(name: "get_slide", arguments: ["index": 1])
         let copyText = try Self.client.extractText(from: copy)
         #expect(copyText.contains("Title Slide"), "Duplicated slide should have same content")
+    }
+
+    @Test("Speaker notes: get, set, and remove")
+    func testSpeakerNotes() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get notes for slide 0 — should have none initially
+        let getResponse = try Self.client.callTool(
+            name: "get_notes",
+            arguments: ["index": 0]
+        )
+        let getText = try Self.client.extractText(from: getResponse)
+        #expect(getText.lowercased().contains("no speaker notes") || getText.contains("no notes"),
+                "Expected no notes initially, got: \(getText)")
+
+        // Set notes
+        let setResponse = try Self.client.callTool(
+            name: "set_notes",
+            arguments: ["index": 0, "notes": "Remember to greet the audience"]
+        )
+        let setText = try Self.client.extractText(from: setResponse)
+        #expect(setText.contains("Remember to greet the audience"),
+                "Expected notes in response, got: \(setText)")
+
+        // Get notes again — verify they're set
+        let getResponse2 = try Self.client.callTool(
+            name: "get_notes",
+            arguments: ["index": 0]
+        )
+        let getText2 = try Self.client.extractText(from: getResponse2)
+        #expect(getText2.contains("Remember to greet the audience"),
+                "Expected set notes, got: \(getText2)")
+
+        // Remove notes by passing empty string
+        let removeResponse = try Self.client.callTool(
+            name: "set_notes",
+            arguments: ["index": 0, "notes": ""]
+        )
+        let removeText = try Self.client.extractText(from: removeResponse)
+        #expect(removeText.lowercased().contains("removed"),
+                "Expected removal confirmation, got: \(removeText)")
+
+        // Verify notes are gone
+        let getResponse3 = try Self.client.callTool(
+            name: "get_notes",
+            arguments: ["index": 0]
+        )
+        let getText3 = try Self.client.extractText(from: getResponse3)
+        #expect(getText3.lowercased().contains("no"),
+                "Expected no notes, got: \(getText3)")
     }
 
     // MARK: - Helpers

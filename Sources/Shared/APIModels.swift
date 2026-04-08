@@ -254,6 +254,26 @@ public struct PublishGistRequest: Codable, Sendable {
     }
 }
 
+// MARK: - Notes Models
+
+public struct NotesResponse: Codable, Sendable {
+    public let index: Int
+    public let notes: String?
+
+    public init(index: Int, notes: String?) {
+        self.index = index
+        self.notes = notes
+    }
+}
+
+public struct SetNotesRequest: Codable, Sendable {
+    public let notes: String?
+
+    public init(notes: String? = nil) {
+        self.notes = notes
+    }
+}
+
 // MARK: - Search Models
 
 public struct SearchRequest: Codable, Sendable {

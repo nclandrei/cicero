@@ -369,6 +369,34 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
 
+        // MARK: - Speaker Notes
+
+        Tool(
+            name: "get_notes",
+            description: "Get the speaker notes for a specific slide",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_notes",
+            description: "Set or remove speaker notes for a specific slide. Pass notes text to set, or null/empty to remove notes.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "notes": .object(["type": "string", "description": "Speaker notes text. Omit or pass empty string to remove notes."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
         // MARK: - HTML export
 
         Tool(
@@ -689,6 +717,28 @@ enum CiceroToolHandler {
                 text += "  …\(match.excerpt)…\n\n"
             }
             return textResult(text)
+
+        case "get_notes":
+            let index = arguments?["index"]?.intValue ?? 0
+            let resp: NotesResponse = try await client.get("/slides/\(index)/notes")
+            if let notes = resp.notes {
+                return textResult("Slide \(index + 1) notes:\n\(notes)")
+            } else {
+                return textResult("Slide \(index + 1) has no speaker notes.")
+            }
+
+        case "set_notes":
+            let index = arguments?["index"]?.intValue ?? 0
+            let notes = arguments?["notes"]?.stringValue
+            let resp: NotesResponse = try await client.put(
+                "/slides/\(index)/notes",
+                body: SetNotesRequest(notes: notes)
+            )
+            if let notes = resp.notes {
+                return textResult("Notes updated for slide \(index + 1):\n\(notes)")
+            } else {
+                return textResult("Notes removed from slide \(index + 1).")
+            }
 
         case "export_html":
             let resp: ExportHTMLResponse = try await client.get("/export/html")

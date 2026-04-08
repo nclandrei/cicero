@@ -176,6 +176,38 @@ final class LocalServer {
             }
         }
 
+        // MARK: - Speaker Notes
+
+        server.GET["/slides/:index/notes"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index") else {
+                return self.jsonError("Invalid slide index")
+            }
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                let notes = self.presentation.slides[index].notes
+                return self.jsonResponse(NotesResponse(index: index, notes: notes))
+            }
+        }
+
+        server.PUT["/slides/:index/notes"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index") else {
+                return self.jsonError("Invalid slide index")
+            }
+            let body: SetNotesRequest? = self.decodeBody(request)
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                self.presentation.updateNotes(at: index, notes: body?.notes)
+                let notes = self.presentation.slides[index].notes
+                return self.jsonResponse(NotesResponse(index: index, notes: notes))
+            }
+        }
+
         server.POST["/slides"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: AddSlideRequest = self.decodeBody(request) else {

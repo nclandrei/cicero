@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Shared
 
@@ -105,5 +106,63 @@ struct SpeakerNotesTests {
         #expect(slide.layout == .title)
         #expect(slide.notes == "Title slide notes")
         #expect(slide.body == "# Big Title")
+    }
+
+    @Test("Get notes via API model")
+    func getNotesModel() {
+        let resp = NotesResponse(index: 0, notes: "My notes")
+        #expect(resp.index == 0)
+        #expect(resp.notes == "My notes")
+    }
+
+    @Test("Get notes nil via API model")
+    func getNotesNilModel() {
+        let resp = NotesResponse(index: 2, notes: nil)
+        #expect(resp.index == 2)
+        #expect(resp.notes == nil)
+    }
+
+    @Test("SetNotesRequest encodes correctly")
+    func setNotesRequestEncoding() throws {
+        let req = SetNotesRequest(notes: "Test notes")
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetNotesRequest.self, from: data)
+        #expect(decoded.notes == "Test notes")
+    }
+
+    @Test("SetNotesRequest with nil notes encodes correctly")
+    func setNotesRequestNilEncoding() throws {
+        let req = SetNotesRequest(notes: nil)
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetNotesRequest.self, from: data)
+        #expect(decoded.notes == nil)
+    }
+
+    @Test("Notes survive set_slide content update")
+    func notesSurviveContentUpdate() {
+        // Simulating: set notes, then update slide content to verify notes format
+        let content = "# Title\n\nBody text"
+        let withNotes = applyNotes(to: content, notes: "Important point")
+        let slide = Slide(id: 0, content: withNotes)
+
+        // Now update the same slide with different body but same notes
+        let newBody = "# New Title\n\nNew body"
+        let updated = applyNotes(to: newBody, notes: slide.notes)
+        let updatedSlide = Slide(id: 0, content: updated)
+        #expect(updatedSlide.notes == "Important point")
+        #expect(updatedSlide.body.contains("New Title"))
+    }
+
+    @Test("Multi-line notes preserved through round-trip")
+    func multiLineNotesRoundTrip() {
+        let notes = "Line 1\nLine 2\nLine 3"
+        let content = "# Slide\n\n<!-- notes\n\(notes)\n-->"
+        let slide = Slide(id: 0, content: content)
+        #expect(slide.notes == notes)
+
+        let (meta, slides) = SlideParser.parse(content)
+        let serialized = SlideParser.serialize(metadata: meta, slides: slides)
+        let (_, reparsed) = SlideParser.parse(serialized)
+        #expect(reparsed[0].notes == notes)
     }
 }
