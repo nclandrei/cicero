@@ -201,6 +201,20 @@ final class LocalServer {
             }
         }
 
+        server.POST["/slides/:index/duplicate"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index") else {
+                return self.jsonError("Invalid slide index")
+            }
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                self.presentation.duplicateSlide(at: index)
+                return self.jsonResponse(SuccessResponse(success: true, message: "Slide \(index + 1) duplicated"))
+            }
+        }
+
         server.POST["/slides/reorder"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: ReorderRequest = self.decodeBody(request) else {

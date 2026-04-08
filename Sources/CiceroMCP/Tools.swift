@@ -80,6 +80,19 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
 
+        Tool(
+            name: "duplicate_slide",
+            description: "Duplicate a slide, inserting the copy immediately after the original",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index to duplicate (0-based)"]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+        ),
+
         // MARK: - Navigation
 
         Tool(
@@ -430,6 +443,11 @@ enum CiceroToolHandler {
                 body: ReorderRequest(from: from, to: to)
             )
             return textResult("Moved slide from position \(from + 1) to \(to + 1).")
+
+        case "duplicate_slide":
+            let index = arguments?["index"]?.intValue ?? 0
+            let _: SuccessResponse = try await client.postEmpty("/slides/\(index)/duplicate")
+            return textResult("Slide \(index + 1) duplicated.")
 
         case "next_slide":
             let resp: NavigateResponse = try await client.post(

@@ -123,7 +123,8 @@ struct MCPIntegrationTests {
             "get_status", "open_file", "create_presentation",
             "auth_status", "publish_gist", "export_pdf", "export_html", "add_image",
             "list_themes", "get_theme", "set_theme",
-            "reorder_slide", "undo", "redo", "search_slides",
+            "reorder_slide", "duplicate_slide", "undo", "redo", "search_slides",
+            "set_image_transform",
             "get_font", "set_font", "get_transition", "set_transition",
             "save_file", "get_markdown",
         ]
@@ -528,6 +529,39 @@ struct MCPIntegrationTests {
                 "Expected author info in status, got: \(text)")
         #expect(text.contains("dark") || text.contains("Theme"),
                 "Expected theme info in status, got: \(text)")
+    }
+
+    @Test("Duplicate slide: creates copy after original")
+    func testDuplicateSlide() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get initial count
+        let before = try Self.client.callTool(name: "list_slides")
+        let beforeText = try Self.client.extractText(from: before)
+        let initialCount = extractSlideCount(from: beforeText)
+
+        // Duplicate slide 0
+        let dupResponse = try Self.client.callTool(
+            name: "duplicate_slide",
+            arguments: ["index": 0]
+        )
+        let dupText = try Self.client.extractText(from: dupResponse)
+        #expect(dupText.lowercased().contains("duplicated"))
+
+        // Verify count increased by 1
+        let after = try Self.client.callTool(name: "list_slides")
+        let afterText = try Self.client.extractText(from: after)
+        let newCount = extractSlideCount(from: afterText)
+        #expect(newCount == initialCount + 1, "Expected \(initialCount + 1) slides after duplicate, got \(newCount)")
+
+        // Verify the duplicated slide has same content as original
+        let original = try Self.client.callTool(name: "get_slide", arguments: ["index": 0])
+        _ = try Self.client.extractText(from: original)
+        let copy = try Self.client.callTool(name: "get_slide", arguments: ["index": 1])
+        let copyText = try Self.client.extractText(from: copy)
+        #expect(copyText.contains("Title Slide"), "Duplicated slide should have same content")
     }
 
     // MARK: - Helpers

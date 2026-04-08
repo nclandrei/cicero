@@ -550,6 +550,86 @@ struct SlideParserTests {
         #expect(slides2[0].embedURL == "https://example.com/widget")
     }
 
+    // MARK: - Slide Duplication Tests
+
+    @Test("Duplicate slide creates copy with same content")
+    func duplicateSlideContent() {
+        let md = """
+        # Slide A
+
+        Content A
+
+        ---
+
+        # Slide B
+        """
+        let (meta, slides) = SlideParser.parse(md)
+        #expect(slides.count == 2)
+
+        // Simulate duplication: insert copy after index 0
+        var newSlides = slides
+        let original = newSlides[0]
+        newSlides.insert(Slide(id: 1, content: original.content), at: 1)
+        let reindexed = newSlides.enumerated().map { i, s in
+            Slide(id: i, content: s.content, body: s.body, layout: s.layout, imageURL: s.imageURL)
+        }
+
+        #expect(reindexed.count == 3)
+        #expect(reindexed[0].content == reindexed[1].content)
+        #expect(reindexed[2].title == "Slide B")
+
+        // Serialize round-trip
+        let serialized = SlideParser.serialize(metadata: meta, slides: reindexed)
+        let (_, reparsed) = SlideParser.parse(serialized)
+        #expect(reparsed.count == 3)
+        #expect(reparsed[0].title == reparsed[1].title)
+    }
+
+    @Test("Duplicate slide with layout preserves layout")
+    func duplicateSlideWithLayout() {
+        let content = "layout: title\n# Big Title"
+        let slide = Slide(id: 0, content: content)
+        let copy = Slide(id: 1, content: slide.content)
+        #expect(copy.layout == .title)
+        #expect(copy.title == "Big Title")
+    }
+
+    @Test("Duplicate slide with notes preserves notes")
+    func duplicateSlideWithNotes() {
+        let content = "# Slide\n\nContent\n\n<!-- notes\nSpeaker notes here\n-->"
+        let slide = Slide(id: 0, content: content)
+        let copy = Slide(id: 1, content: slide.content)
+        #expect(copy.notes == "Speaker notes here")
+        #expect(copy.body == slide.body)
+    }
+
+    @Test("Duplicate last slide")
+    func duplicateLastSlide() {
+        let md = """
+        # A
+
+        ---
+
+        # B
+
+        ---
+
+        # C
+        """
+        let (meta, slides) = SlideParser.parse(md)
+        var newSlides = slides
+        let last = newSlides[2]
+        newSlides.append(Slide(id: 3, content: last.content))
+        let reindexed = newSlides.enumerated().map { i, s in
+            Slide(id: i, content: s.content, body: s.body, layout: s.layout, imageURL: s.imageURL)
+        }
+
+        let serialized = SlideParser.serialize(metadata: meta, slides: reindexed)
+        let (_, reparsed) = SlideParser.parse(serialized)
+        #expect(reparsed.count == 4)
+        #expect(reparsed[2].title == reparsed[3].title)
+    }
+
     @Test("Video and image coexist on same slide")
     func videoAndImageCoexist() {
         let content = "layout: video\nvideo: assets/demo.mp4\nimage: assets/poster.png\n# Title"
