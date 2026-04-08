@@ -212,6 +212,20 @@ public struct SetPresenterToolRequest: Codable, Sendable {
     }
 }
 
+// MARK: - Timer Models
+
+public struct TimerResponse: Codable, Sendable {
+    public let running: Bool
+    public let elapsedSeconds: Int
+    public let wallClock: String
+
+    public init(running: Bool, elapsedSeconds: Int, wallClock: String) {
+        self.running = running
+        self.elapsedSeconds = elapsedSeconds
+        self.wallClock = wallClock
+    }
+}
+
 // MARK: - Requests
 
 public struct NavigateRequest: Codable, Sendable {

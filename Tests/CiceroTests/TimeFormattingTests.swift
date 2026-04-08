@@ -74,4 +74,45 @@ struct TimeFormattingTests {
         let result = TimeFormatting.wallClock(from: date)
         #expect(result == "9:08")
     }
+
+    // MARK: - TimerResponse
+
+    @Test("TimerResponse model")
+    func timerResponseModel() {
+        let resp = TimerResponse(running: true, elapsedSeconds: 125, wallClock: "2:30 PM")
+        #expect(resp.running == true)
+        #expect(resp.elapsedSeconds == 125)
+        #expect(resp.wallClock == "2:30 PM")
+    }
+
+    @Test("TimerResponse encoding round-trip")
+    func timerResponseEncoding() throws {
+        let resp = TimerResponse(running: false, elapsedSeconds: 0, wallClock: "10:00 AM")
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(TimerResponse.self, from: data)
+        #expect(decoded.running == false)
+        #expect(decoded.elapsedSeconds == 0)
+        #expect(decoded.wallClock == "10:00 AM")
+    }
+
+    @Test("TimerResponse stopped state")
+    func timerResponseStopped() {
+        let resp = TimerResponse(running: false, elapsedSeconds: 0, wallClock: "12:00 PM")
+        #expect(!resp.running)
+        #expect(resp.elapsedSeconds == 0)
+    }
+
+    @Test("TimerResponse running with elapsed time")
+    func timerResponseRunning() {
+        let resp = TimerResponse(running: true, elapsedSeconds: 3661, wallClock: "3:15 PM")
+        #expect(resp.running)
+        #expect(resp.elapsedSeconds == 3661)
+        // 3661s = 1h 1m 1s
+        let hours = resp.elapsedSeconds / 3600
+        let minutes = (resp.elapsedSeconds % 3600) / 60
+        let seconds = resp.elapsedSeconds % 60
+        #expect(hours == 1)
+        #expect(minutes == 1)
+        #expect(seconds == 1)
+    }
 }

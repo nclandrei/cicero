@@ -384,6 +384,46 @@ final class LocalServer {
             return self.jsonResponse(SuccessResponse(success: true, message: "Drawings cleared"))
         }
 
+        // MARK: - Timer
+
+        server.GET["/timer"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/timer/start"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.startTimer() }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/timer/stop"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.stopTimer() }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
         server.POST["/undo"] = { [weak self] _ in
             guard let self else { return .internalServerError }
             let result = self.onMain { () -> UndoRedoResponse in

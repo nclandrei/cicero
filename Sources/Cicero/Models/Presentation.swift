@@ -26,6 +26,10 @@ final class Presentation {
     var wallClock: String = TimeFormatting.wallClock()
     private var timer: Timer?
 
+    var isTimerRunning: Bool {
+        timer != nil
+    }
+
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
         return slides[currentIndex]

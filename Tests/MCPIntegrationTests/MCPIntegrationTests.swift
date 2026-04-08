@@ -129,6 +129,7 @@ struct MCPIntegrationTests {
             "save_file", "get_markdown",
             "get_notes", "set_notes",
             "get_presenter_tool", "set_presenter_tool", "clear_drawings",
+            "get_timer", "start_timer", "stop_timer",
         ]
 
         let toolNames = Set(tools.compactMap { $0["name"] as? String })
@@ -668,7 +669,41 @@ struct MCPIntegrationTests {
         )
         let resetText = try Self.client.extractText(from: resetResponse)
         #expect(resetText.contains("none"), "Expected none, got: \(resetText)")
->>>>>>> 074915c (Add presenter tool controls via MCP (pointer, spotlight, drawing))
+    }
+
+    @Test("Timer: start, check, and stop")
+    func testTimer() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get initial timer state — should be stopped
+        let getResponse = try Self.client.callTool(name: "get_timer")
+        let getText = try Self.client.extractText(from: getResponse)
+        #expect(getText.lowercased().contains("stopped"), "Expected timer stopped, got: \(getText)")
+
+        // Start timer
+        let startResponse = try Self.client.callTool(name: "start_timer")
+        let startText = try Self.client.extractText(from: startResponse)
+        #expect(startText.lowercased().contains("started"), "Expected timer started, got: \(startText)")
+
+        // Brief pause to let timer tick
+        Thread.sleep(forTimeInterval: 1.5)
+
+        // Get timer — should be running with elapsed > 0
+        let checkResponse = try Self.client.callTool(name: "get_timer")
+        let checkText = try Self.client.extractText(from: checkResponse)
+        #expect(checkText.lowercased().contains("running"), "Expected timer running, got: \(checkText)")
+
+        // Stop timer
+        let stopResponse = try Self.client.callTool(name: "stop_timer")
+        let stopText = try Self.client.extractText(from: stopResponse)
+        #expect(stopText.lowercased().contains("stopped"), "Expected timer stopped, got: \(stopText)")
+
+        // Verify stopped state
+        let finalResponse = try Self.client.callTool(name: "get_timer")
+        let finalText = try Self.client.extractText(from: finalResponse)
+        #expect(finalText.lowercased().contains("stopped"), "Expected timer stopped, got: \(finalText)")
     }
 
     // MARK: - Helpers
