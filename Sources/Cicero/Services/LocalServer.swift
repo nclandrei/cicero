@@ -342,6 +342,48 @@ final class LocalServer {
             return self.jsonResponse(SuccessResponse(success: true))
         }
 
+        // MARK: - Presenter Tools
+
+        server.GET["/presenter/tool"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let resp = self.onMain {
+                PresenterToolResponse(
+                    activeTool: self.presentation.activeTool,
+                    available: ["none", "pointer", "spotlight", "drawing"],
+                    drawingStrokeCount: self.presentation.drawingStrokes.count
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.PUT["/presenter/tool"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SetPresenterToolRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"tool\": \"none|pointer|spotlight|drawing\"}")
+            }
+            let valid = ["none", "pointer", "spotlight", "drawing"]
+            guard valid.contains(body.tool) else {
+                return self.jsonError("Unknown tool '\(body.tool)'. Valid: \(valid.joined(separator: ", "))")
+            }
+            self.onMain {
+                self.presentation.setPresenterTool(body.tool)
+            }
+            let resp = self.onMain {
+                PresenterToolResponse(
+                    activeTool: self.presentation.activeTool,
+                    available: valid,
+                    drawingStrokeCount: self.presentation.drawingStrokes.count
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/presenter/clear-drawings"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.clearDrawings() }
+            return self.jsonResponse(SuccessResponse(success: true, message: "Drawings cleared"))
+        }
+
         server.POST["/undo"] = { [weak self] _ in
             guard let self else { return .internalServerError }
             let result = self.onMain { () -> UndoRedoResponse in

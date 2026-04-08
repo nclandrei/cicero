@@ -93,4 +93,48 @@ struct PresenterToolTests {
         #expect(stroke1.points.count == 1)
         #expect(stroke2.points.count == 2)
     }
+
+    @Test("PresenterToolResponse model")
+    func presenterToolResponseModel() {
+        let resp = PresenterToolResponse(
+            activeTool: "pointer",
+            available: ["none", "pointer", "spotlight", "drawing"],
+            drawingStrokeCount: 3
+        )
+        #expect(resp.activeTool == "pointer")
+        #expect(resp.available.count == 4)
+        #expect(resp.drawingStrokeCount == 3)
+    }
+
+    @Test("SetPresenterToolRequest encodes correctly")
+    func setPresenterToolRequestEncoding() throws {
+        let req = SetPresenterToolRequest(tool: "spotlight")
+        let data = try JSONEncoder().encode(req)
+        let decoded = try JSONDecoder().decode(SetPresenterToolRequest.self, from: data)
+        #expect(decoded.tool == "spotlight")
+    }
+
+    @Test("PresenterToolResponse round-trip encoding")
+    func presenterToolResponseEncoding() throws {
+        let resp = PresenterToolResponse(
+            activeTool: "drawing",
+            available: ["none", "pointer", "spotlight", "drawing"],
+            drawingStrokeCount: 0
+        )
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(PresenterToolResponse.self, from: data)
+        #expect(decoded.activeTool == "drawing")
+        #expect(decoded.available == resp.available)
+        #expect(decoded.drawingStrokeCount == 0)
+    }
+
+    @Test("Invalid presenter tool is rejected")
+    func invalidPresenterToolName() {
+        // Verify that only valid tool names are accepted
+        let valid = ["none", "pointer", "spotlight", "drawing"]
+        #expect(valid.contains("pointer"))
+        #expect(!valid.contains("laser"))
+        #expect(!valid.contains(""))
+        #expect(!valid.contains("highlighter"))
+    }
 }

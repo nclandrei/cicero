@@ -190,6 +190,28 @@ public struct ErrorResponse: Codable, Sendable {
     }
 }
 
+// MARK: - Presenter Tool Models
+
+public struct PresenterToolResponse: Codable, Sendable {
+    public let activeTool: String
+    public let available: [String]
+    public let drawingStrokeCount: Int
+
+    public init(activeTool: String, available: [String], drawingStrokeCount: Int) {
+        self.activeTool = activeTool
+        self.available = available
+        self.drawingStrokeCount = drawingStrokeCount
+    }
+}
+
+public struct SetPresenterToolRequest: Codable, Sendable {
+    public let tool: String
+
+    public init(tool: String) {
+        self.tool = tool
+    }
+}
+
 // MARK: - Requests
 
 public struct NavigateRequest: Codable, Sendable {

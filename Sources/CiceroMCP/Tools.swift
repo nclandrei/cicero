@@ -250,6 +250,33 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
 
+        // MARK: - Presenter tools
+
+        Tool(
+            name: "get_presenter_tool",
+            description: "Get the active presenter tool and list of available tools (none, pointer, spotlight, drawing)",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_presenter_tool",
+            description: "Activate a presenter tool during presentation mode. Use 'none' to deactivate all tools.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "tool": .object(["type": "string", "description": "Tool to activate: none, pointer, spotlight, or drawing"]),
+                ]),
+                "required": .array([.string("tool")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "clear_drawings",
+            description: "Clear all drawing strokes made with the drawing presenter tool",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
+        ),
+
         // MARK: - Theming
 
         Tool(
@@ -608,6 +635,25 @@ enum CiceroToolHandler {
                 body: req
             )
             return textResult("Image transform updated on slide \(slideIndex + 1).")
+
+        case "get_presenter_tool":
+            let resp: PresenterToolResponse = try await client.get("/presenter/tool")
+            var text = "Active tool: \(resp.activeTool)\n"
+            text += "Available: \(resp.available.joined(separator: ", "))\n"
+            text += "Drawing strokes: \(resp.drawingStrokeCount)"
+            return textResult(text)
+
+        case "set_presenter_tool":
+            let tool = arguments?["tool"]?.stringValue ?? "none"
+            let resp: PresenterToolResponse = try await client.put(
+                "/presenter/tool",
+                body: SetPresenterToolRequest(tool: tool)
+            )
+            return textResult("Presenter tool set to: \(resp.activeTool)")
+
+        case "clear_drawings":
+            let _: SuccessResponse = try await client.postEmpty("/presenter/clear-drawings")
+            return textResult("All drawing strokes cleared.")
 
         case "list_themes":
             let resp: ThemeListResponse = try await client.get("/themes")

@@ -261,6 +261,20 @@ final class Presentation {
         return "![\(alt)](\(path)#w=400&x=280&y=170)"
     }
 
+    // MARK: - Presenter Tools
+    var activeTool: String = "none"  // Use String to avoid importing SwiftUI enum
+    var drawingStrokes: [[CGPoint]] = []
+
+    func setPresenterTool(_ tool: String) {
+        let valid = ["none", "pointer", "spotlight", "drawing"]
+        guard valid.contains(tool) else { return }
+        activeTool = tool
+    }
+
+    func clearDrawings() {
+        drawingStrokes = []
+    }
+
     // MARK: - Timer
 
     func startTimer() {

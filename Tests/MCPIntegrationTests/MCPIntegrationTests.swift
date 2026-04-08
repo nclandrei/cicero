@@ -128,6 +128,7 @@ struct MCPIntegrationTests {
             "get_font", "set_font", "get_transition", "set_transition",
             "save_file", "get_markdown",
             "get_notes", "set_notes",
+            "get_presenter_tool", "set_presenter_tool", "clear_drawings",
         ]
 
         let toolNames = Set(tools.compactMap { $0["name"] as? String })
@@ -615,6 +616,59 @@ struct MCPIntegrationTests {
         let getText3 = try Self.client.extractText(from: getResponse3)
         #expect(getText3.lowercased().contains("no"),
                 "Expected no notes, got: \(getText3)")
+    }
+
+    @Test("Presenter tools: get, set, and clear drawings")
+    func testPresenterTools() throws {
+        try skipIfNotAvailable()
+        try ensureSetUp()
+        try createTestPresentation()
+
+        // Get current tool — should be none
+        let getResponse = try Self.client.callTool(name: "get_presenter_tool")
+        let getText = try Self.client.extractText(from: getResponse)
+        #expect(getText.contains("none"), "Expected no active tool, got: \(getText)")
+        #expect(getText.contains("pointer"), "Expected pointer in available list")
+        #expect(getText.contains("spotlight"), "Expected spotlight in available list")
+        #expect(getText.contains("drawing"), "Expected drawing in available list")
+
+        // Set to pointer
+        let setResponse = try Self.client.callTool(
+            name: "set_presenter_tool",
+            arguments: ["tool": "pointer"]
+        )
+        let setText = try Self.client.extractText(from: setResponse)
+        #expect(setText.contains("pointer"), "Expected pointer confirmation, got: \(setText)")
+
+        // Set to spotlight
+        let spotResponse = try Self.client.callTool(
+            name: "set_presenter_tool",
+            arguments: ["tool": "spotlight"]
+        )
+        let spotText = try Self.client.extractText(from: spotResponse)
+        #expect(spotText.contains("spotlight"), "Expected spotlight, got: \(spotText)")
+
+        // Set to drawing
+        let drawResponse = try Self.client.callTool(
+            name: "set_presenter_tool",
+            arguments: ["tool": "drawing"]
+        )
+        let drawText = try Self.client.extractText(from: drawResponse)
+        #expect(drawText.contains("drawing"), "Expected drawing, got: \(drawText)")
+
+        // Clear drawings
+        let clearResponse = try Self.client.callTool(name: "clear_drawings")
+        let clearText = try Self.client.extractText(from: clearResponse)
+        #expect(clearText.lowercased().contains("cleared"), "Expected cleared confirmation, got: \(clearText)")
+
+        // Reset to none
+        let resetResponse = try Self.client.callTool(
+            name: "set_presenter_tool",
+            arguments: ["tool": "none"]
+        )
+        let resetText = try Self.client.extractText(from: resetResponse)
+        #expect(resetText.contains("none"), "Expected none, got: \(resetText)")
+>>>>>>> 074915c (Add presenter tool controls via MCP (pointer, spotlight, drawing))
     }
 
     // MARK: - Helpers
