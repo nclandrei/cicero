@@ -44,7 +44,17 @@ swift run Cicero
 
 ## MCP Setup
 
-Start the app, then point your MCP client at CiceroMCP:
+Cicero includes an MCP server (`CiceroMCP`) that lets AI agents control the app. Start Cicero, then configure your agent.
+
+**Quick install:** Open Cicero → Settings → MCP Server and click **Install** next to your agent. Or add the config manually:
+
+### Claude Code
+
+```bash
+claude mcp add cicero -- swift run --package-path /path/to/cicero CiceroMCP
+```
+
+Or add to `.mcp.json` in your project (or `~/.claude.json` for global):
 
 ```json
 {
@@ -57,7 +67,101 @@ Start the app, then point your MCP client at CiceroMCP:
 }
 ```
 
-Or run it directly:
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "cicero": {
+      "command": "swift",
+      "args": ["run", "--package-path", "/path/to/cicero", "CiceroMCP"]
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project or `~/.cursor/mcp.json` for global:
+
+```json
+{
+  "mcpServers": {
+    "cicero": {
+      "command": "swift",
+      "args": ["run", "--package-path", "/path/to/cicero", "CiceroMCP"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cicero": {
+      "command": "swift",
+      "args": ["run", "--package-path", "/path/to/cicero", "CiceroMCP"]
+    }
+  }
+}
+```
+
+### Amp
+
+```bash
+amp mcp add cicero -- swift run --package-path /path/to/cicero CiceroMCP
+```
+
+Or add to `~/.config/amp/settings.json`:
+
+```json
+{
+  "amp.mcpServers": {
+    "cicero": {
+      "command": "swift",
+      "args": ["run", "--package-path", "/path/to/cicero", "CiceroMCP"]
+    }
+  }
+}
+```
+
+### Codex
+
+```bash
+codex mcp add cicero -- swift run --package-path /path/to/cicero CiceroMCP
+```
+
+Or add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.cicero]
+command = "swift"
+args = ["run", "--package-path", "/path/to/cicero", "CiceroMCP"]
+```
+
+### OpenCode
+
+Add to `~/.config/opencode/opencode.json` or `opencode.json` in your project:
+
+```json
+{
+  "mcp": {
+    "cicero": {
+      "type": "local",
+      "command": ["swift", "run", "--package-path", "/path/to/cicero", "CiceroMCP"],
+      "enabled": true
+    }
+  }
+}
+```
+
+### Run directly
 
 ```bash
 swift run CiceroMCP

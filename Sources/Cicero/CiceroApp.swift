@@ -13,6 +13,9 @@ struct CiceroApp: App {
     // Auto-update
     @StateObject private var updater = UpdaterController()
 
+    // MCP installer
+    @StateObject private var mcpInstaller = MCPInstaller()
+
     // Auth state
     @State private var auth = GitHubAuth(clientId: "Ov23liDEDmYLwzNebYiR")
     @State private var isAuthenticated = false
@@ -199,7 +202,8 @@ struct CiceroApp: App {
                 authError: $authError,
                 onSignIn: { startSignIn() },
                 onSignOut: { signOut() },
-                updater: updater
+                updater: updater,
+                mcpInstaller: mcpInstaller
             )
         }
 

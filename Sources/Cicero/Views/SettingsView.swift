@@ -9,6 +9,7 @@ struct SettingsView: View {
     var onSignIn: () -> Void
     var onSignOut: () -> Void
     @ObservedObject var updater: UpdaterController
+    @ObservedObject var mcpInstaller: MCPInstaller
 
     var body: some View {
         Form {
@@ -126,6 +127,55 @@ struct SettingsView: View {
             } header: {
                 Label("Software Update", systemImage: "arrow.down.circle")
             }
+
+            Section {
+                if mcpInstaller.packagePath.isEmpty {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.title2)
+                            .foregroundColor(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Package path not detected")
+                                .fontWeight(.medium)
+                            Text("Set the path to the Cicero source directory to enable MCP installation.")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder")
+                            .foregroundColor(.secondary)
+                        Text(mcpInstaller.packagePath)
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                ForEach(MCPAgent.allCases) { agent in
+                    MCPAgentRow(agent: agent, installer: mcpInstaller)
+                }
+
+                if let error = mcpInstaller.lastError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                            .lineLimit(3)
+                    }
+                }
+            } header: {
+                Label("MCP Server", systemImage: "server.rack")
+            } footer: {
+                Text("Install the Cicero MCP server for your AI coding agents. Restart the agent after installing.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480)
@@ -139,5 +189,42 @@ struct SettingsView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return "Last checked \(formatter.localizedString(for: date, relativeTo: Date()))"
+    }
+}
+
+// MARK: - MCP agent row
+
+private struct MCPAgentRow: View {
+    let agent: MCPAgent
+    @ObservedObject var installer: MCPInstaller
+
+    private var isInstalled: Bool { installer.installedAgents.contains(agent) }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: agent.iconName)
+                .frame(width: 20)
+                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(agent.displayName)
+                    .fontWeight(.medium)
+                Text(agent.configDescription)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer()
+            if isInstalled {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Button("Remove") { installer.uninstall(agent) }
+                    .controlSize(.small)
+            } else {
+                Button("Install") { installer.install(agent) }
+                    .controlSize(.small)
+                    .disabled(installer.packagePath.isEmpty)
+            }
+        }
     }
 }
