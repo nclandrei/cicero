@@ -342,6 +342,44 @@ public struct SearchResponse: Codable, Sendable {
     }
 }
 
+// MARK: - Replace Models
+
+public struct ReplaceRequest: Codable, Sendable {
+    public let query: String
+    public let replacement: String
+
+    public init(query: String, replacement: String) {
+        self.query = query
+        self.replacement = replacement
+    }
+}
+
+public struct ReplaceMatch: Codable, Sendable {
+    public let index: Int
+    public let title: String?
+    public let replacements: Int
+
+    public init(index: Int, title: String?, replacements: Int) {
+        self.index = index
+        self.title = title
+        self.replacements = replacements
+    }
+}
+
+public struct ReplaceResponse: Codable, Sendable {
+    public let query: String
+    public let replacement: String
+    public let totalReplacements: Int
+    public let matches: [ReplaceMatch]
+
+    public init(query: String, replacement: String, totalReplacements: Int, matches: [ReplaceMatch]) {
+        self.query = query
+        self.replacement = replacement
+        self.totalReplacements = totalReplacements
+        self.matches = matches
+    }
+}
+
 // MARK: - Theme Models
 
 public struct ThemeListResponse: Codable, Sendable {
