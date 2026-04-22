@@ -115,9 +115,13 @@ struct PresenterView: View {
             presentation.startTimer()
             isFocused = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if let window = NSApp.windows.first(where: { $0.title == "Presenter" || $0.identifier?.rawValue == "presenter" }) {
-                    window.toggleFullScreen(nil)
+                guard let window = NSApp.windows.first(where: { $0.title == "Presenter" || $0.identifier?.rawValue == "presenter" }) else {
+                    return
                 }
+                if let external = externalScreen() {
+                    window.setFrame(external.frame, display: true)
+                }
+                window.toggleFullScreen(nil)
             }
         }
         .onDisappear {
@@ -191,6 +195,16 @@ struct PresenterView: View {
                 removal: .move(edge: .leading).combined(with: .opacity)
             )
         }
+    }
+
+    /// Returns a screen that is not the one currently showing the main editor
+    /// window, so the audience view lands on the projector/external display.
+    private func externalScreen() -> NSScreen? {
+        let screens = NSScreen.screens
+        guard screens.count > 1 else { return nil }
+        let mainWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })
+        let mainScreen = mainWindow?.screen ?? NSScreen.main
+        return screens.first(where: { $0 !== mainScreen }) ?? screens.last
     }
 
     private func navigate(_ action: () -> Void) {
