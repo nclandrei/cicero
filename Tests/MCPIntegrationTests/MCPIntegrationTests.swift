@@ -123,7 +123,7 @@ struct MCPIntegrationTests {
             "get_status", "open_file", "create_presentation",
             "auth_status", "publish_gist", "export_pdf", "export_html", "add_image",
             "list_themes", "get_theme", "set_theme",
-            "reorder_slide", "duplicate_slide", "undo", "redo", "search_slides",
+            "reorder_slide", "duplicate_slide", "undo", "redo", "search_slides", "replace_slides",
             "set_image_transform",
             "get_font", "set_font", "get_transition", "set_transition",
             "save_file", "get_markdown",

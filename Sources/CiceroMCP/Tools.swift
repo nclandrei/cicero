@@ -416,6 +416,19 @@ enum CiceroTools {
             ]),
             annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
+        Tool(
+            name: "replace_slides",
+            description: "Replace all occurrences of a literal (case-sensitive) text across every slide. Returns the number of replacements made per affected slide.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "query": .object(["type": "string", "description": "Literal text to find (case-sensitive)"]),
+                    "replacement": .object(["type": "string", "description": "Text to replace each match with. Use an empty string to delete matches."]),
+                ]),
+                "required": .array([.string("query"), .string("replacement")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
+        ),
 
         // MARK: - Speaker Notes
 
@@ -802,6 +815,23 @@ enum CiceroToolHandler {
                 let title = match.title ?? "(untitled)"
                 text += "[\(match.index + 1)] \(title)\n"
                 text += "  …\(match.excerpt)…\n\n"
+            }
+            return textResult(text)
+
+        case "replace_slides":
+            let query = arguments?["query"]?.stringValue ?? ""
+            let replacement = arguments?["replacement"]?.stringValue ?? ""
+            let resp: ReplaceResponse = try await client.post(
+                "/replace",
+                body: ReplaceRequest(query: query, replacement: replacement)
+            )
+            if resp.matches.isEmpty {
+                return textResult("No matches found for \"\(resp.query)\". Nothing was replaced.")
+            }
+            var text = "Replaced \(resp.totalReplacements) occurrence(s) of \"\(resp.query)\" with \"\(resp.replacement)\" across \(resp.matches.count) slide(s):\n\n"
+            for match in resp.matches {
+                let title = match.title ?? "(untitled)"
+                text += "[\(match.index + 1)] \(title) — \(match.replacements) replacement(s)\n"
             }
             return textResult(text)
 

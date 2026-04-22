@@ -702,6 +702,41 @@ final class LocalServer {
             return self.jsonResponse(SearchResponse(query: decoded, matches: matches))
         }
 
+        server.POST["/replace"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: ReplaceRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body")
+            }
+            guard !body.query.isEmpty else {
+                return self.jsonError("Missing 'query' field")
+            }
+            return self.onMain {
+                var matches: [ReplaceMatch] = []
+                var total = 0
+                for slide in self.presentation.slides {
+                    let result = SearchReplace.replaceInContent(
+                        slide.content,
+                        query: body.query,
+                        replacement: body.replacement
+                    )
+                    guard result.replacements > 0 else { continue }
+                    self.presentation.updateSlide(at: slide.id, content: result.updatedContent)
+                    matches.append(ReplaceMatch(
+                        index: slide.id,
+                        title: self.presentation.slides[slide.id].title,
+                        replacements: result.replacements
+                    ))
+                    total += result.replacements
+                }
+                return self.jsonResponse(ReplaceResponse(
+                    query: body.query,
+                    replacement: body.replacement,
+                    totalReplacements: total,
+                    matches: matches
+                ))
+            }
+        }
+
         server.POST["/publish"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let body: PublishGistRequest? = self.decodeBody(request)
