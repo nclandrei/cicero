@@ -264,6 +264,35 @@ final class LocalServer {
             }
         }
 
+        server.POST["/find-replace"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: FindReplaceRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"query\": String, \"replacement\": String, \"slide_indices\"?: [Int], \"case_sensitive\"?: Bool}")
+            }
+            return self.onMain {
+                let count = self.presentation.slides.count
+                if let provided = body.slideIndices,
+                   let bad = RequestValidator.firstOutOfRange(provided, count: count) {
+                    return self.jsonError("Slide index out of range: \(bad)")
+                }
+                let pairs = self.presentation.slides.map { (index: $0.id, content: $0.content) }
+                let result = FindReplace.apply(
+                    to: pairs,
+                    query: body.query,
+                    replacement: body.replacement,
+                    slideIndices: body.slideIndices,
+                    caseSensitive: body.caseSensitive ?? false
+                )
+                if !result.updates.isEmpty {
+                    self.presentation.bulkUpdateSlides(result.updates)
+                }
+                return self.jsonResponse(FindReplaceResponse(
+                    replacements: result.totalReplacements,
+                    affectedSlides: result.affectedSlides
+                ))
+            }
+        }
+
         server.POST["/slides/reorder"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: ReorderRequest = self.decodeBody(request) else {

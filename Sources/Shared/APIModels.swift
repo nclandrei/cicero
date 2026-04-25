@@ -338,6 +338,44 @@ public struct SetNotesRequest: Codable, Sendable {
     }
 }
 
+// MARK: - Find & Replace Models
+
+public struct FindReplaceRequest: Codable, Sendable {
+    public let query: String
+    public let replacement: String
+    public let slideIndices: [Int]?
+    public let caseSensitive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case query
+        case replacement
+        case slideIndices = "slide_indices"
+        case caseSensitive = "case_sensitive"
+    }
+
+    public init(query: String, replacement: String, slideIndices: [Int]? = nil, caseSensitive: Bool? = nil) {
+        self.query = query
+        self.replacement = replacement
+        self.slideIndices = slideIndices
+        self.caseSensitive = caseSensitive
+    }
+}
+
+public struct FindReplaceResponse: Codable, Sendable {
+    public let replacements: Int
+    public let affectedSlides: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case replacements
+        case affectedSlides = "affected_slides"
+    }
+
+    public init(replacements: Int, affectedSlides: [Int]) {
+        self.replacements = replacements
+        self.affectedSlides = affectedSlides
+    }
+}
+
 // MARK: - Search Models
 
 public struct SearchRequest: Codable, Sendable {

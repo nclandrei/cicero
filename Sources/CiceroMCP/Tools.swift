@@ -441,6 +441,28 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
 
+        // MARK: - Find & Replace
+
+        Tool(
+            name: "find_and_replace",
+            description: "Find and replace text across slides. By default operates on all slides case-insensitively. Optionally restrict to specific slide indices.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "query": .object(["type": "string", "description": "Text to search for"]),
+                    "replacement": .object(["type": "string", "description": "Replacement text"]),
+                    "slide_indices": .object([
+                        "type": "array",
+                        "description": "Optional 0-based slide indices to limit replacement to. Omit for all slides.",
+                        "items": .object(["type": "integer"]),
+                    ]),
+                    "case_sensitive": .object(["type": "boolean", "description": "Match case (default false)"]),
+                ]),
+                "required": .array([.string("query"), .string("replacement")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+        ),
+
         // MARK: - Speaker Notes
 
         Tool(
@@ -841,6 +863,29 @@ enum CiceroToolHandler {
                 text += "  …\(match.excerpt)…\n\n"
             }
             return textResult(text)
+
+        case "find_and_replace":
+            let query = arguments?["query"]?.stringValue ?? ""
+            let replacement = arguments?["replacement"]?.stringValue ?? ""
+            let caseSensitive = arguments?["case_sensitive"]?.boolValue
+            var slideIndices: [Int]? = nil
+            if let arr = arguments?["slide_indices"], case .array(let values) = arr {
+                slideIndices = values.compactMap { $0.intValue }
+            }
+            let resp: FindReplaceResponse = try await client.post(
+                "/find-replace",
+                body: FindReplaceRequest(
+                    query: query,
+                    replacement: replacement,
+                    slideIndices: slideIndices,
+                    caseSensitive: caseSensitive
+                )
+            )
+            if resp.replacements == 0 {
+                return textResult("No matches found for \"\(query)\".")
+            }
+            let slidesText = resp.affectedSlides.map { String($0 + 1) }.joined(separator: ", ")
+            return textResult("Replaced \(resp.replacements) occurrence(s) across slide(s): \(slidesText).")
 
         case "get_notes":
             let index = arguments?["index"]?.intValue ?? 0
