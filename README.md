@@ -33,6 +33,20 @@ You can also use the app directly. It has a split-pane editor with live preview,
 
 ## Install
 
+### Homebrew (recommended)
+
+```bash
+brew install nclandrei/tap/cicero
+```
+
+This installs the Cicero app and a bundled `cicero-mcp` binary on your `PATH`:
+
+- Apple Silicon: `/opt/homebrew/bin/cicero-mcp`
+- Intel: `/usr/local/bin/cicero-mcp`
+
+MCP clients can be pointed at that absolute path directly (see below) — no source
+checkout or `swift run` required.
+
 ### Build from source
 
 Requires Xcode 15+ / Swift 6.0.
@@ -46,7 +60,12 @@ swift run Cicero
 
 Cicero includes an MCP server (`CiceroMCP`) that lets AI agents control the app. Start Cicero, then configure your agent.
 
-**Quick install:** Open Cicero → Settings → MCP Server and click **Install** next to your agent. Or add the config manually:
+**Quick install:** Open Cicero → Settings → MCP Server and click **Install** next to your agent. Or add the config manually.
+
+**Bundled binary vs. source build:** if you installed via Homebrew, use the absolute
+path to the `cicero-mcp` binary (`/opt/homebrew/bin/cicero-mcp` on Apple Silicon,
+`/usr/local/bin/cicero-mcp` on Intel) as `command` with no `args`. The `swift run …`
+snippets below are the fallback when you're running from a source checkout.
 
 ### Claude Code
 
@@ -272,6 +291,54 @@ docs/                  Web viewer (GitHub Pages)
 swift build
 swift test
 ```
+
+## Troubleshooting
+
+### Port 19847 already in use
+
+The Cicero app failed to start its HTTP server because something is already bound to
+port 19847. Find the offender:
+
+```bash
+lsof -i :19847
+```
+
+Kill it (`kill <pid>`), or quit the previous Cicero instance. A configurable port via
+Settings is on the roadmap.
+
+### MCP server not connecting
+
+Check, in order:
+
+1. Is the Cicero app running? The MCP server proxies to the app over HTTP — without
+   the app, every tool call fails.
+2. Is `cicero-mcp` on your `PATH`? After `brew install nclandrei/tap/cicero` it lives
+   at `/opt/homebrew/bin/cicero-mcp` (Apple Silicon) or `/usr/local/bin/cicero-mcp`
+   (Intel). Test with `which cicero-mcp`.
+3. Falling back to a source build? Use `swift run --package-path /path/to/cicero CiceroMCP`
+   in your MCP config instead of the binary.
+4. Smoke-test the HTTP layer directly: `curl localhost:19847/status` should return
+   JSON. If that fails the MCP server can't possibly work.
+
+### Gatekeeper blocks first launch
+
+The first time you open the downloaded `.app`, macOS may refuse it ("Cicero cannot be
+opened because the developer cannot be verified"). Two options:
+
+- Right-click the app → **Open** → confirm in the dialog.
+- Or remove the quarantine attribute from the terminal:
+
+  ```bash
+  xattr -d com.apple.quarantine /Applications/Cicero.app
+  ```
+
+### MCP installer says "no Package.swift found"
+
+Older Cicero builds assumed the `.app` was running from a source checkout and tried to
+locate `Package.swift` next to the binary. The bundled-binary installs from Homebrew
+ship `cicero-mcp` directly — no source checkout exists, so the lookup fails. Fixed in
+the latest release: the installer now writes the absolute path to the bundled
+`cicero-mcp` binary into your agent's MCP config.
 
 ## License
 
