@@ -283,23 +283,23 @@ struct ResizableImageView: View {
     private var widthBar: some View {
         HStack(spacing: 6) {
             ForEach(presets) { preset in
+                let isCurrent = abs(currentWidth - preset.width) < 10
                 Button {
                     applyWidth(preset.width)
                 } label: {
                     Text(preset.label)
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(
-                            abs(currentWidth - preset.width) < 10 ? Color.white : Color.secondary
-                        )
+                        .foregroundStyle(isCurrent ? Color.white : Color.secondary)
                         .frame(width: 24, height: 20)
                         .background(
-                            abs(currentWidth - preset.width) < 10
-                                ? Color.accentColor
-                                : Color.clear,
+                            isCurrent ? Color.accentColor : Color.clear,
                             in: RoundedRectangle(cornerRadius: 4)
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Resize image to \(preset.label) preset, \(Int(preset.width)) pixels")
+                .accessibilityValue(isCurrent ? "Selected" : "")
+                .accessibilityAddTraits(isCurrent ? [.isButton, .isSelected] : .isButton)
             }
 
             Divider()
@@ -313,10 +313,12 @@ struct ResizableImageView: View {
                     .multilineTextAlignment(.trailing)
                     .onSubmit { commitWidthEdit() }
                     .onExitCommand { cancelWidthEdit() }
+                    .accessibilityLabel("Image width in pixels")
 
                 Text("px")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             } else {
                 Button {
                     widthText = "\(Int(currentWidth))"
@@ -327,6 +329,8 @@ struct ResizableImageView: View {
                         .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Image width \(Int(currentWidth)) pixels")
+                .accessibilityHint("Activate to type a custom pixel width")
             }
         }
         .padding(.horizontal, 10)
