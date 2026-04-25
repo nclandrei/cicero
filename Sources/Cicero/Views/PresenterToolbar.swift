@@ -12,9 +12,27 @@ struct PresenterToolbar: View {
         VStack {
             if isVisible {
                 HStack(spacing: 12) {
-                    toolButton(icon: "hand.point.up.left", tool: .pointer, label: "Pointer (P)")
-                    toolButton(icon: "light.max", tool: .spotlight, label: "Spotlight (S)")
-                    toolButton(icon: "pencil.tip", tool: .drawing, label: "Draw (D)")
+                    toolButton(
+                        icon: "hand.point.up.left",
+                        tool: .pointer,
+                        label: "Pointer (P)",
+                        accessibilityLabel: "Pointer tool",
+                        accessibilityHint: "Toggles a virtual laser pointer that follows the cursor"
+                    )
+                    toolButton(
+                        icon: "light.max",
+                        tool: .spotlight,
+                        label: "Spotlight (S)",
+                        accessibilityLabel: "Spotlight tool",
+                        accessibilityHint: "Toggles a spotlight that dims the slide except around the cursor"
+                    )
+                    toolButton(
+                        icon: "pencil.tip",
+                        tool: .drawing,
+                        label: "Draw (D)",
+                        accessibilityLabel: "Drawing tool",
+                        accessibilityHint: "Toggles freehand drawing on top of the slide"
+                    )
 
                     Divider()
                         .frame(height: 20)
@@ -25,18 +43,24 @@ struct PresenterToolbar: View {
                             .font(.system(size: 14))
                             .foregroundStyle(.white.opacity(0.8))
                             .frame(width: 32, height: 32)
+                            .accessibilityHidden(true)
                     }
                     .buttonStyle(.plain)
                     .help("Clear Drawings (C)")
+                    .accessibilityLabel("Clear drawings")
+                    .accessibilityHint("Removes all freehand drawings from the slide")
 
                     Button(action: onExit) {
                         Image(systemName: "xmark")
                             .font(.system(size: 14))
                             .foregroundStyle(.white.opacity(0.8))
                             .frame(width: 32, height: 32)
+                            .accessibilityHidden(true)
                     }
                     .buttonStyle(.plain)
                     .help("Exit Presentation")
+                    .accessibilityLabel("Exit presentation")
+                    .accessibilityHint("Closes the presenter window")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -48,6 +72,9 @@ struct PresenterToolbar: View {
                     .fill(.white.opacity(0.15))
                     .frame(width: 40, height: 4)
                     .onTapGesture { showToolbar() }
+                    .accessibilityLabel("Show presenter toolbar")
+                    .accessibilityHint("Reveals the presenter tool controls")
+                    .accessibilityAddTraits(.isButton)
             }
 
             Spacer()
@@ -67,18 +94,30 @@ struct PresenterToolbar: View {
     }
 
     @ViewBuilder
-    private func toolButton(icon: String, tool: PresenterTool, label: String) -> some View {
+    private func toolButton(
+        icon: String,
+        tool: PresenterTool,
+        label: String,
+        accessibilityLabel: String,
+        accessibilityHint: String
+    ) -> some View {
+        let isActive = currentTool == tool
         Button {
-            currentTool = currentTool == tool ? .none : tool
+            currentTool = isActive ? .none : tool
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundStyle(currentTool == tool ? .yellow : .white.opacity(0.8))
+                .foregroundStyle(isActive ? .yellow : .white.opacity(0.8))
                 .frame(width: 32, height: 32)
-                .background(currentTool == tool ? .white.opacity(0.15) : .clear, in: Circle())
+                .background(isActive ? .white.opacity(0.15) : .clear, in: Circle())
+                .accessibilityHidden(true)
         }
         .buttonStyle(.plain)
         .help(label)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHint)
+        .accessibilityValue(isActive ? "On" : "Off")
+        .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
     }
 
     private func showToolbar() {
