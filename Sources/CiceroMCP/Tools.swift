@@ -201,6 +201,24 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
+            name: "close_file",
+            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "new_presentation",
+            description: "Create a new blank presentation with optional title and author. Replaces the currently open deck.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "title": .object(["type": "string", "description": "Optional presentation title"]),
+                    "author": .object(["type": "string", "description": "Optional author name"]),
+                ]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
+        ),
+        Tool(
             name: "create_presentation",
             description: "Create a new presentation from markdown content. Use --- to separate slides. Optionally include YAML frontmatter for title/theme/author.",
             inputSchema: .object([
@@ -682,6 +700,23 @@ enum CiceroToolHandler {
                 "/open", body: OpenFileRequest(path: path)
             )
             return textResult("Opened \(path)")
+
+        case "close_file":
+            let resp: StatusResponse = try await client.postEmpty("/close")
+            return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+
+        case "new_presentation":
+            let title = arguments?["title"]?.stringValue
+            let author = arguments?["author"]?.stringValue
+            let resp: StatusResponse = try await client.post(
+                "/new",
+                body: NewPresentationRequest(title: title, author: author)
+            )
+            var msg = "New blank presentation created"
+            if let t = resp.title { msg += " (title: \(t))" }
+            if let a = resp.author { msg += " (author: \(a))" }
+            msg += "."
+            return textResult(msg)
 
         case "create_presentation":
             let markdown = arguments?["markdown"]?.stringValue ?? ""

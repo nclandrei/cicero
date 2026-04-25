@@ -506,6 +506,52 @@ final class LocalServer {
             }
         }
 
+        server.POST["/close"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain {
+                self.presentation.filePath = nil
+                self.presentation.loadMarkdown(SlideParser.blankPresentation())
+            }
+            let resp = self.onMain {
+                StatusResponse(
+                    currentSlide: self.presentation.currentIndex,
+                    totalSlides: self.presentation.slides.count,
+                    presenting: self.presentation.isPresenting,
+                    filePath: self.presentation.filePath?.path,
+                    title: self.presentation.metadata.title,
+                    theme: self.presentation.metadata.theme,
+                    author: self.presentation.metadata.author,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/new"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            // Body is optional; treat empty/invalid body as defaults.
+            let body: NewPresentationRequest = self.decodeBody(request) ?? NewPresentationRequest()
+            self.onMain {
+                self.presentation.filePath = nil
+                self.presentation.loadMarkdown(SlideParser.blankPresentation(title: body.title, author: body.author))
+            }
+            let resp = self.onMain {
+                StatusResponse(
+                    currentSlide: self.presentation.currentIndex,
+                    totalSlides: self.presentation.slides.count,
+                    presenting: self.presentation.isPresenting,
+                    filePath: self.presentation.filePath?.path,
+                    title: self.presentation.metadata.title,
+                    theme: self.presentation.metadata.theme,
+                    author: self.presentation.metadata.author,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
         server.POST["/create"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: CreatePresentationRequest = self.decodeBody(request) else {

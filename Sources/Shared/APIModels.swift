@@ -326,6 +326,16 @@ public struct CreatePresentationRequest: Codable, Sendable {
     }
 }
 
+public struct NewPresentationRequest: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+
+    public init(title: String? = nil, author: String? = nil) {
+        self.title = title
+        self.author = author
+    }
+}
+
 public struct ReorderRequest: Codable, Sendable {
     public let from: Int
     public let to: Int

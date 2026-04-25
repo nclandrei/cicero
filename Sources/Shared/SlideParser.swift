@@ -286,6 +286,15 @@ public enum SlideParser {
         return slideIdx
     }
 
+    /// Build a blank single-slide presentation markdown with optional metadata.
+    /// Used by close_file (no metadata) and new_presentation (with title/author).
+    /// The single slide contains a minimal placeholder so the parser preserves it.
+    public static func blankPresentation(title: String? = nil, author: String? = nil) -> String {
+        let metadata = PresentationMetadata(title: title, author: author)
+        let slide = Slide(id: 0, content: "# ")
+        return serialize(metadata: metadata, slides: [slide])
+    }
+
     public static func serialize(metadata: PresentationMetadata, slides: [Slide]) -> String {
         var parts: [String] = []
 
