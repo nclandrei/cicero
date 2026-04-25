@@ -262,6 +262,58 @@ public struct SetSlideURLRequest: Codable, Sendable {
     }
 }
 
+public struct SetMetadataRequest: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+    public let theme: String?
+    public let font: String?
+    public let transition: String?
+
+    public init(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: String? = nil
+    ) {
+        self.title = title
+        self.author = author
+        self.theme = theme
+        self.font = font
+        self.transition = transition
+    }
+}
+
+public struct MetadataResponse: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+    public let theme: String?
+    public let font: String?
+    public let transition: String?
+
+    public init(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: String? = nil
+    ) {
+        self.title = title
+        self.author = author
+        self.theme = theme
+        self.font = font
+        self.transition = transition
+    }
+}
+
+public struct SaveAsRequest: Codable, Sendable {
+    public let path: String
+
+    public init(path: String) {
+        self.path = path
+    }
+}
+
 public struct AddSlideRequest: Codable, Sendable {
     public let content: String
     public let afterIndex: Int?

@@ -637,7 +637,7 @@ final class LocalServer {
             let resp = self.onMain {
                 FontResponse(
                     current: self.presentation.metadata.font,
-                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                    available: CiceroFonts.curated
                 )
             }
             return self.jsonResponse(resp)
@@ -652,7 +652,7 @@ final class LocalServer {
             let resp = self.onMain {
                 FontResponse(
                     current: self.presentation.metadata.font,
-                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                    available: CiceroFonts.curated
                 )
             }
             return self.jsonResponse(resp)
@@ -691,6 +691,50 @@ final class LocalServer {
                 TransitionResponse(
                     current: (self.presentation.metadata.transition ?? .none).rawValue,
                     available: PresentationTransition.allCases.map(\.rawValue)
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        // MARK: - Metadata
+
+        server.PUT["/metadata"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SetMetadataRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body")
+            }
+            // Validate provided fields up-front so we don't half-apply.
+            if let theme = body.theme, !MetadataValidator.isValidTheme(theme) {
+                let valid = ThemeRegistry.builtIn.map(\.name) + ["auto", "custom"]
+                return self.jsonError("Unknown theme '\(theme)'. Valid: \(valid.joined(separator: ", "))", status: 400)
+            }
+            if let font = body.font, !font.isEmpty, !MetadataValidator.isValidFont(font) {
+                return self.jsonError("Unknown font '\(font)'. Valid: \(CiceroFonts.curated.joined(separator: ", "))", status: 400)
+            }
+            var transitionEnum: PresentationTransition? = nil
+            if let t = body.transition {
+                guard let parsed = PresentationTransition(rawValue: t) else {
+                    let valid = PresentationTransition.allCases.map(\.rawValue).joined(separator: ", ")
+                    return self.jsonError("Unknown transition '\(t)'. Valid: \(valid)", status: 400)
+                }
+                transitionEnum = parsed
+            }
+            self.onMain {
+                self.presentation.updateMetadata(
+                    title: body.title,
+                    author: body.author,
+                    theme: body.theme,
+                    font: body.font,
+                    transition: transitionEnum
+                )
+            }
+            let resp = self.onMain {
+                MetadataResponse(
+                    title: self.presentation.metadata.title,
+                    author: self.presentation.metadata.author,
+                    theme: self.presentation.metadata.theme,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
                 )
             }
             return self.jsonResponse(resp)

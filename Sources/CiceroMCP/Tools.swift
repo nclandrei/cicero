@@ -425,6 +425,24 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
 
+        // MARK: - Metadata
+
+        Tool(
+            name: "set_metadata",
+            description: "Update presentation-level frontmatter. Pass any subset of fields — only provided keys are updated. Theme, font, and transition are validated against known values.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "title": .object(["type": "string", "description": "Presentation title"]),
+                    "author": .object(["type": "string", "description": "Author name"]),
+                    "theme": .object(["type": "string", "description": "Theme name (built-in, 'auto', or 'custom')"]),
+                    "font": .object(["type": "string", "description": "Font family from the curated list"]),
+                    "transition": .object(["type": "string", "description": "Slide transition: none, fade, slide, push"]),
+                ]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
         // MARK: - Save & markdown
 
         Tool(
@@ -860,6 +878,23 @@ enum CiceroToolHandler {
         case "stop_timer":
             let _: TimerResponse = try await client.postEmpty("/timer/stop")
             return textResult("Timer stopped.")
+
+        case "set_metadata":
+            let req = SetMetadataRequest(
+                title: arguments?["title"]?.stringValue,
+                author: arguments?["author"]?.stringValue,
+                theme: arguments?["theme"]?.stringValue,
+                font: arguments?["font"]?.stringValue,
+                transition: arguments?["transition"]?.stringValue
+            )
+            let resp: MetadataResponse = try await client.put("/metadata", body: req)
+            var text = "Metadata updated:\n"
+            if let title = resp.title { text += "  title: \(title)\n" }
+            if let author = resp.author { text += "  author: \(author)\n" }
+            if let theme = resp.theme { text += "  theme: \(theme)\n" }
+            if let font = resp.font { text += "  font: \(font)\n" }
+            if let transition = resp.transition { text += "  transition: \(transition)\n" }
+            return textResult(text)
 
         case "save_file":
             let resp: SaveResponse = try await client.postEmpty("/save")

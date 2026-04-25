@@ -44,6 +44,33 @@ final class Presentation {
         rebuildMarkdown()
     }
 
+    /// Update multiple top-level metadata fields at once. Each parameter is optional;
+    /// nil means "leave alone". Persisted by re-serializing the markdown frontmatter.
+    func updateMetadata(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: PresentationTransition? = nil
+    ) {
+        if let title { metadata.title = title.isEmpty ? nil : title }
+        if let author { metadata.author = author.isEmpty ? nil : author }
+        if let theme {
+            metadata.theme = theme
+            if theme != "custom" {
+                metadata.themeBackground = nil
+                metadata.themeText = nil
+                metadata.themeHeading = nil
+                metadata.themeAccent = nil
+                metadata.themeCodeBackground = nil
+                metadata.themeCodeText = nil
+            }
+        }
+        if let font { metadata.font = font.isEmpty ? nil : font }
+        if let transition { metadata.transition = transition }
+        rebuildMarkdown()
+    }
+
     func setTheme(_ name: String) {
         metadata.theme = name
         if name != "custom" {
