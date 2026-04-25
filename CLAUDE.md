@@ -34,11 +34,55 @@ swift run CiceroMCP            # Run MCP server (needs running app)
 
 ## HTTP API Endpoints
 
-GET /status, /slides, /slides/:n, /current, /screenshot, /screenshot/:n, /thumbnails
-GET /export/pdf, /export/html
-POST /slides, /navigate, /presentation/start, /presentation/stop, /open, /create
-PUT /slides/:n
-DELETE /slides/:n
+All routes are served by `Sources/Cicero/Services/LocalServer.swift` on `localhost:19847`.
+
+**GET**
+- `/status` — current slide, total, presenting flag, file path, metadata
+- `/slides` — full slide list with current index
+- `/slides/:index` — single slide
+- `/slides/:index/notes` — speaker notes for a slide
+- `/current` — current slide index + total
+- `/screenshot` — render current slide PNG (optional `?save_path=`)
+- `/screenshot/:index` — render specific slide PNG (optional `?save_path=`)
+- `/thumbnails` — base64 thumbnails for every slide
+- `/presenter/tool` — active presenter tool (none/pointer/spotlight/drawing)
+- `/timer` — timer state (running, elapsed, wall clock)
+- `/export/pdf` — base64 PDF of the deck
+- `/export/html` — self-contained reveal.js HTML
+- `/auth/status` — GitHub auth state + username
+- `/themes` — list of built-in themes
+- `/theme` — current theme + resolved palette
+- `/font` — current font + suggestion list
+- `/transition` — current transition + available list
+- `/markdown` — raw markdown buffer + dirty flag
+- `/search?q=…` — substring search across slides
+
+**POST**
+- `/slides` — append/insert a slide
+- `/slides/:index/duplicate` — clone a slide
+- `/slides/reorder` — move slide `from` → `to`
+- `/navigate` — `next`/`prev`/`goto` (with `index`)
+- `/presentation/start`, `/presentation/stop` — fullscreen presenter
+- `/presenter/clear-drawings` — wipe drawing strokes
+- `/timer/start`, `/timer/stop`
+- `/undo`, `/redo`
+- `/open` — load file at path
+- `/create` — replace deck with provided markdown
+- `/images` — store base64 image, return markdown snippet
+- `/save` — write current deck to disk
+- `/publish` — publish (or update) GitHub Gist; requires auth
+
+**PUT**
+- `/slides/:index` — replace slide content
+- `/slides/:index/image-transform` — set/update `#w=&x=&y=` fragment for an image
+- `/slides/:index/notes` — set speaker notes
+- `/presenter/tool` — set active presenter tool
+- `/theme` — switch to built-in or custom theme
+- `/font` — set font (nil clears)
+- `/transition` — set deck transition
+
+**DELETE**
+- `/slides/:index` — remove a slide
 
 ## GitHub Auth
 
