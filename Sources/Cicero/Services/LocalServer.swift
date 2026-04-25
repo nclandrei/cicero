@@ -448,6 +448,45 @@ final class LocalServer {
             return self.jsonResponse(resp)
         }
 
+        server.POST["/timer/pause"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.pauseTimer() }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/timer/resume"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.resumeTimer() }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/timer/reset"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain { self.presentation.resetTimer() }
+            let resp = self.onMain {
+                TimerResponse(
+                    running: self.presentation.isTimerRunning,
+                    elapsedSeconds: self.presentation.elapsedSeconds,
+                    wallClock: self.presentation.wallClock
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
         server.POST["/undo"] = { [weak self] _ in
             guard let self else { return .internalServerError }
             let result = self.onMain { () -> UndoRedoResponse in
