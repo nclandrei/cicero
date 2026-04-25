@@ -1,4 +1,5 @@
 import AppKit
+import Shared
 import Splash
 
 /// Applies markdown syntax highlighting to an NSTextView using text storage attributes.
@@ -116,31 +117,39 @@ final class MarkdownHighlighter {
         Self.codeFenceRegex.enumerateMatches(in: nsText as String, range: fullRange) { match, _, _ in
             guard let match else { return }
             let fenceRange = match.range
+            let langRange = match.range(at: 1)
             let codeRange = match.range(at: 2)
 
-            // Color the fence delimiters and language tag
             storage.addAttribute(.foregroundColor, value: colors.codeFence, range: fenceRange)
-
-            // Background for the whole fence
             storage.addAttribute(.backgroundColor, value: colors.codeBackground, range: fenceRange)
 
-            // Apply Splash highlighting to the code content
+            let languageHint: String? = {
+                guard langRange.location != NSNotFound, langRange.length > 0 else { return nil }
+                return nsText.substring(with: langRange)
+            }()
+            let mode = CodeFenceLanguageMode.mode(for: languageHint)
+
             if codeRange.location != NSNotFound && codeRange.length > 0 {
-                let codeText = nsText.substring(with: codeRange)
-                let tokens = self.splashTokenizer.highlight(codeText)
-                for (tokenRange, tokenType) in tokens {
-                    let adjustedRange = NSRange(
-                        location: codeRange.location + tokenRange.location,
-                        length: tokenRange.length
-                    )
-                    guard adjustedRange.location + adjustedRange.length <= nsText.length else { continue }
-                    let color: NSColor
-                    if let tokenType {
-                        color = splashTheme.tokenColors[tokenType] ?? splashTheme.plainTextColor
-                    } else {
-                        color = splashTheme.plainTextColor
+                switch mode {
+                case .swift:
+                    let codeText = nsText.substring(with: codeRange)
+                    let tokens = self.splashTokenizer.highlight(codeText)
+                    for (tokenRange, tokenType) in tokens {
+                        let adjustedRange = NSRange(
+                            location: codeRange.location + tokenRange.location,
+                            length: tokenRange.length
+                        )
+                        guard adjustedRange.location + adjustedRange.length <= nsText.length else { continue }
+                        let color: NSColor
+                        if let tokenType {
+                            color = splashTheme.tokenColors[tokenType] ?? splashTheme.plainTextColor
+                        } else {
+                            color = splashTheme.plainTextColor
+                        }
+                        storage.addAttribute(.foregroundColor, value: color, range: adjustedRange)
                     }
-                    storage.addAttribute(.foregroundColor, value: color, range: adjustedRange)
+                case .plain:
+                    storage.addAttribute(.foregroundColor, value: splashTheme.plainTextColor, range: codeRange)
                 }
             }
 
