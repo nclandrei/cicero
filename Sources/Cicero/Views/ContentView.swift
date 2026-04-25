@@ -81,6 +81,8 @@ struct ContentView: View {
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
                     .padding(.bottom, 24)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .accessibilityLabel(message)
+                    .accessibilityAddTraits(.isStaticText)
                     .onAppear {
                         Task {
                             try? await Task.sleep(for: .seconds(2))
