@@ -1,0 +1,28 @@
+# Cicero Sparkle EdDSA public key
+#
+# This file is the canonical, version-controlled source of truth for the
+# Sparkle (sparkle-project.org) EdDSA *public* key used to verify update
+# enclosures shipped via https://cicero.nicolaeandrei.com/appcast.xml.
+#
+# Why commit it?
+#
+#   1. Out-of-band verification. Anyone reviewing a release can compare
+#      this committed key against the SUPublicEDKey embedded in the
+#      shipped Info.plist and against the appcast itself.
+#   2. Drift detection. The release workflow checks that the value of
+#      secrets.SPARKLE_EDDSA_PUBLIC_KEY matches the trimmed contents of
+#      this file at build time, and fails fast if they diverge — so a
+#      silent rotation of the GitHub secret can't ship a build that
+#      installs updates signed by a different key than the one users
+#      can audit here.
+#
+# Format: a single line containing the base64-encoded EdDSA public key,
+# exactly as printed by `generate_keys` from the Sparkle distribution.
+# Lines beginning with `#` and blank lines are ignored by the drift
+# checker; everything else is concatenated and trimmed.
+#
+# TODO(human): paste the real public key on the next line, then delete
+# this TODO comment. Until then the release workflow's drift check will
+# fail (intentionally) — that's the point: no release can ship without
+# the committed key matching the GitHub secret.
+PASTE_REAL_SPARKLE_EDDSA_PUBLIC_KEY_HERE

@@ -25,6 +25,41 @@ jobs:
           echo "tag=$(date -u +'%Y%m%d.%H%M%S')" >> "$GITHUB_OUTPUT"
           echo "display=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
+      - name: Verify Sparkle public key
+        env:
+          SPARKLE_EDDSA_PUBLIC_KEY: ${{ secrets.SPARKLE_EDDSA_PUBLIC_KEY }}
+        run: |
+          # Out-of-band verification: the committed docs/sparkle-public-key.txt
+          # must agree with the GitHub secret. If they diverge, either the
+          # secret was rotated without committing the new public key, or the
+          # committed file is stale — either way we refuse to ship.
+          KEY_FILE="docs/sparkle-public-key.txt"
+          if [ ! -f "$KEY_FILE" ]; then
+            echo "::error::missing $KEY_FILE — commit the Sparkle EdDSA public key"
+            exit 1
+          fi
+
+          # Strip comment lines and blank lines, then trim whitespace.
+          COMMITTED=$(grep -v '^[[:space:]]*#' "$KEY_FILE" | tr -d '[:space:]')
+          SECRET=$(printf '%s' "$SPARKLE_EDDSA_PUBLIC_KEY" | tr -d '[:space:]')
+
+          if [ -z "$COMMITTED" ]; then
+            echo "::error::$KEY_FILE contains no key (only comments?). Paste the real EdDSA public key."
+            exit 1
+          fi
+          if [ -z "$SECRET" ]; then
+            echo "::error::secrets.SPARKLE_EDDSA_PUBLIC_KEY is empty"
+            exit 1
+          fi
+
+          if [ "$COMMITTED" != "$SECRET" ]; then
+            echo "::error::Sparkle public key drift: secrets.SPARKLE_EDDSA_PUBLIC_KEY does not match $KEY_FILE"
+            echo "Either update the GitHub secret to match the committed key, or commit a new key file."
+            exit 1
+          fi
+
+          echo "Sparkle public key matches committed value."
+
       - name: Import signing certificate
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
