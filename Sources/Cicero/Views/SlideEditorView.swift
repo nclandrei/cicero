@@ -15,16 +15,19 @@ struct SlideEditorView: View {
                 Text("Markdown")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Spacer()
                 if presentation.isDirty {
                     Circle()
                         .fill(.orange)
                         .frame(width: 8, height: 8)
                         .help("Unsaved changes")
+                        .accessibilityLabel("Unsaved changes")
                 }
                 Text("\(presentation.slides.count) slides")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(presentation.slides.count) slides total")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -47,6 +50,8 @@ struct SlideEditorView: View {
                     }
                 }
             )
+            .accessibilityLabel("Markdown editor")
+            .accessibilityHint("Edit the presentation markdown. Slides are separated by three dashes.")
             .overlay {
                 if dropTargeted {
                     RoundedRectangle(cornerRadius: 8)

@@ -16,6 +16,7 @@ struct SpeakerNotesEditor: View {
                 Image(systemName: "note.text")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text("Speaker Notes")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -30,6 +31,8 @@ struct SpeakerNotesEditor: View {
                     .font(.system(size: 12, design: .monospaced))
                     .scrollContentBackground(.hidden)
                     .padding(4)
+                    .accessibilityLabel("Speaker notes")
+                    .accessibilityHint("Notes shown only in the presenter window for the current slide")
 
                 if notesText.isEmpty {
                     Text("Add speaker notes...")
@@ -38,6 +41,7 @@ struct SpeakerNotesEditor: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 12)
                         .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
             }
         }
