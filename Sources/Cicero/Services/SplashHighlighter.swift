@@ -1,20 +1,32 @@
 import SwiftUI
 import MarkdownUI
 import Splash
+import Shared
 
 /// Bridges Splash syntax highlighting into MarkdownUI's CodeSyntaxHighlighter protocol
 struct SplashCodeSyntaxHighlighter: CodeSyntaxHighlighter {
+    private let theme: Splash.Theme
     private let syntaxHighlighter: SyntaxHighlighter<TextOutputFormat>
 
     init(theme: Splash.Theme) {
+        self.theme = theme
         self.syntaxHighlighter = SyntaxHighlighter(format: TextOutputFormat(theme: theme))
     }
 
     func highlightCode(_ content: String, language: String?) -> Text {
-        guard language != nil else {
+        // Splash only tokenizes Swift, so only feed it Swift fences (or fences
+        // with no language hint, where Splash's plain-text fallback still gives
+        // us the theme's plainTextColor). Any other language is rendered as
+        // plain text styled with theme.plainTextColor and a monospaced font, so
+        // we don't mis-color e.g. Python or Ruby as if it were Swift.
+        switch CodeFenceLanguageMode.mode(for: language) {
+        case .swift:
+            return syntaxHighlighter.highlight(content)
+        case .plain:
             return Text(content)
+                .foregroundColor(Color(nsColor: theme.plainTextColor))
+                .font(.system(size: CGFloat(theme.font.size), design: .monospaced))
         }
-        return syntaxHighlighter.highlight(content)
     }
 }
 
