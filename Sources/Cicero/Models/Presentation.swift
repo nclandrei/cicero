@@ -22,13 +22,15 @@ final class Presentation {
     let editHistory = EditHistory()
 
     // MARK: - Presenter Timer
-    var elapsedSeconds: Int = 0
+    private var timerState = PresentationTimerState()
     var wallClock: String = TimeFormatting.wallClock()
     private var timer: Timer?
 
-    var isTimerRunning: Bool {
-        timer != nil
-    }
+    var elapsedSeconds: Int { timerState.elapsedSeconds }
+
+    var isTimerRunning: Bool { timerState.isRunning }
+
+    var timerLifecycle: PresentationTimerLifecycle { timerState.state }
 
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
@@ -277,33 +279,87 @@ final class Presentation {
 
     func clearDrawings() {
         drawingStrokes = []
+        // Also clear persisted per-slide drawings on the current slide.
+        if currentIndex >= 0 && currentIndex < slides.count {
+            setSlideDrawings(at: currentIndex, strokes: nil)
+        }
+    }
+
+    // MARK: - Per-slide drawing persistence
+
+    /// Read persisted drawings for a slide. Nil if the slide has none or
+    /// if the index is out of bounds.
+    func slideDrawings(at index: Int) -> [SlideDrawingStroke]? {
+        guard index >= 0 && index < slides.count else { return nil }
+        return slides[index].drawings
+    }
+
+    /// Persist drawings for a slide into its markdown content via the
+    /// `drawings: <base64-json>` frontmatter line. Passing nil or an empty
+    /// array removes the line. Triggers a markdown rebuild so the on-disk
+    /// markdown stays in sync.
+    func setSlideDrawings(at index: Int, strokes: [SlideDrawingStroke]?) {
+        guard index >= 0 && index < slides.count else { return }
+        slides[index].setDrawings(strokes)
+        rebuildMarkdown()
     }
 
     // MARK: - Timer
 
+    /// Start the timer fresh. Resets elapsed seconds to 0 and runs.
+    /// Idempotent across all states — calling startTimer always starts fresh.
     func startTimer() {
-        elapsedSeconds = 0
+        timerState.start()
         wallClock = TimeFormatting.wallClock()
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.elapsedSeconds += 1
-            self.wallClock = TimeFormatting.wallClock()
-        }
+        scheduleTimer()
     }
 
+    /// Pause the running timer, preserving elapsed seconds. No-op if not running.
+    /// Use resumeTimer() to continue accumulating from the paused elapsed value.
+    func pauseTimer() {
+        guard timerState.isRunning else { return }
+        timerState.pause()
+        timer?.invalidate()
+        timer = nil
+    }
+
+    /// Resume the timer from a paused state, continuing to accumulate from the
+    /// current elapsed seconds. No-op if not paused.
+    func resumeTimer() {
+        guard timerState.state == .paused else { return }
+        timerState.resume()
+        wallClock = TimeFormatting.wallClock()
+        scheduleTimer()
+    }
+
+    /// Reset the timer fully — invalidates the running source and zeroes elapsed.
+    /// Equivalent to stopTimer() but named for clarity at call sites.
+    func resetTimer() {
+        timer?.invalidate()
+        timer = nil
+        timerState.reset()
+    }
+
+    /// Stop the timer. Existing semantics preserved: zeroes elapsed and goes idle.
     func stopTimer() {
         timer?.invalidate()
         timer = nil
-        elapsedSeconds = 0
+        timerState.stop()
+    }
+
+    private func scheduleTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.timerState.tick()
+            self.wallClock = TimeFormatting.wallClock()
+        }
     }
 
     // MARK: - Private
 
     private func reindexSlides() {
-        slides = slides.enumerated().map { index, slide in
-            Slide(id: index, content: slide.content, body: slide.body, layout: slide.layout, imageURL: slide.imageURL)
-        }
+        slides.reindex()
     }
 
     private func rebuildMarkdown() {
