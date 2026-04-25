@@ -41,11 +41,17 @@ struct PresenterView: View {
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { navigate { presentation.previous() } }
+                        .accessibilityLabel("Previous slide")
+                        .accessibilityHint("Tap the left half of the slide to go back")
+                        .accessibilityAddTraits(.isButton)
 
                     // Right half — next
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { navigate { presentation.next() } }
+                        .accessibilityLabel("Next slide")
+                        .accessibilityHint("Tap the right half of the slide to advance")
+                        .accessibilityAddTraits(.isButton)
                 }
             }
 
@@ -91,6 +97,7 @@ struct PresenterView: View {
                     HStack(spacing: 8) {
                         Text(TimeFormatting.elapsedTime(seconds: presentation.elapsedSeconds))
                         Text("·")
+                            .accessibilityHidden(true)
                         Text(presentation.wallClock)
                     }
                     .font(.system(size: 14))
@@ -99,6 +106,8 @@ struct PresenterView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(.black.opacity(0.35), in: Capsule())
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Elapsed \(TimeFormatting.elapsedTime(seconds: presentation.elapsedSeconds)), clock \(presentation.wallClock)")
 
                     Spacer()
 
@@ -110,6 +119,7 @@ struct PresenterView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(.black.opacity(0.35), in: Capsule())
+                        .accessibilityLabel("Slide \(presentation.currentIndex + 1) of \(presentation.slides.count)")
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
