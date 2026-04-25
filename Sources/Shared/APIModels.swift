@@ -70,6 +70,18 @@ public struct NavigateResponse: Codable, Sendable {
     }
 }
 
+public struct CurrentSlideResponse: Codable, Sendable {
+    public let currentIndex: Int
+    public let totalSlides: Int
+    public let slide: SlideInfo?
+
+    public init(currentIndex: Int, totalSlides: Int, slide: SlideInfo?) {
+        self.currentIndex = currentIndex
+        self.totalSlides = totalSlides
+        self.slide = slide
+    }
+}
+
 public struct ScreenshotResponse: Codable, Sendable {
     public let base64PNG: String
     public let slideIndex: Int

@@ -311,11 +311,24 @@ final class LocalServer {
 
         server.GET["/current"] = { [weak self] _ in
             guard let self else { return .internalServerError }
-            let resp = self.onMain {
-                NavigateResponse(
-                    currentIndex: self.presentation.currentIndex,
-                    totalSlides: self.presentation.slides.count
+            let resp = self.onMain { () -> CurrentSlideResponse in
+                let idx = self.presentation.currentIndex
+                let total = self.presentation.slides.count
+                guard idx >= 0 && idx < total else {
+                    return CurrentSlideResponse(currentIndex: idx, totalSlides: total, slide: nil)
+                }
+                let s = self.presentation.slides[idx]
+                let info = SlideInfo(
+                    index: idx,
+                    title: s.title,
+                    content: s.content,
+                    layout: s.layout == .default ? nil : s.layout.rawValue,
+                    imageURL: s.imageURL,
+                    videoURL: s.videoURL,
+                    embedURL: s.embedURL,
+                    notes: s.notes
                 )
+                return CurrentSlideResponse(currentIndex: idx, totalSlides: total, slide: info)
             }
             return self.jsonResponse(resp)
         }

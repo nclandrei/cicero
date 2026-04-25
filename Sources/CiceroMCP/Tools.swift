@@ -161,6 +161,12 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
+            name: "get_current",
+            description: "Get the current slide's index, total slide count, and full content (including layout, image/video/embed URLs, and notes).",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+        ),
+        Tool(
             name: "goto_slide",
             description: "Navigate to a specific slide by index",
             inputSchema: .object([
@@ -656,6 +662,20 @@ enum CiceroToolHandler {
                 "/navigate", body: NavigateRequest(action: "prev")
             )
             return textResult("Now on slide \(resp.currentIndex + 1) of \(resp.totalSlides).")
+
+        case "get_current":
+            let resp: CurrentSlideResponse = try await client.get("/current")
+            var text = "Slide \(resp.currentIndex + 1) of \(resp.totalSlides)"
+            if let slide = resp.slide {
+                if let layout = slide.layout {
+                    text += " [\(layout)]"
+                }
+                text += "\n\n\(slide.content)"
+                if let notes = slide.notes {
+                    text += "\n\nNotes: \(notes)"
+                }
+            }
+            return textResult(text)
 
         case "goto_slide":
             let index = arguments?["index"]?.intValue ?? 0
