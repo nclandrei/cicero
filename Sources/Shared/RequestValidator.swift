@@ -45,16 +45,3 @@ public enum RequestValidator {
     }
 }
 
-/// The curated list of fonts surfaced via GET /font and accepted by PUT /font.
-/// Kept here so HTTP, MCP, and the tests share a single source of truth.
-public enum CuratedFonts {
-    public static let all: [String] = [
-        "SF Pro Display",
-        "Helvetica Neue",
-        "Georgia",
-        "Palatino",
-        "Courier New",
-        "Menlo",
-        "SF Mono",
-    ]
-}
