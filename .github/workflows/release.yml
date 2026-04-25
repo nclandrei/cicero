@@ -161,7 +161,6 @@ jobs:
           sleep 60
 
       - name: Staple
-        continue-on-error: true
         run: |
           for i in $(seq 1 5); do
             if xcrun stapler staple Cicero.app; then
@@ -170,7 +169,7 @@ jobs:
             echo "Staple attempt $i failed, waiting 30s..."
             sleep 30
           done
-          echo "::warning::Stapling failed — app is still notarized and will work, Gatekeeper checks online instead"
+          echo "::error::Stapling failed after 5 attempts — refusing to ship unstapled build"
           exit 1
 
       - name: Re-package
