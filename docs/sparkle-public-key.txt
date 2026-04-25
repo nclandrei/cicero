@@ -20,9 +20,4 @@
 # exactly as printed by `generate_keys` from the Sparkle distribution.
 # Lines beginning with `#` and blank lines are ignored by the drift
 # checker; everything else is concatenated and trimmed.
-#
-# TODO(human): paste the real public key on the next line, then delete
-# this TODO comment. Until then the release workflow's drift check will
-# fail (intentionally) — that's the point: no release can ship without
-# the committed key matching the GitHub secret.
-PASTE_REAL_SPARKLE_EDDSA_PUBLIC_KEY_HERE
+ANK7TWVWKmVPsfO0DXhXwyz3pQLZZKyhRNmkua2JNKA=
