@@ -19,8 +19,12 @@ final class LocalServer {
 
     func start() {
         do {
+            // Bind to loopback only — never accept connections from the LAN.
+            // Without this, Swifter listens on 0.0.0.0 and exposes the API to anyone
+            // on the same network segment.
+            server.listenAddressIPv4 = CiceroConstants.httpLoopbackAddress
             try server.start(CiceroConstants.httpPort, forceIPv4: true)
-            print("[Cicero] HTTP server listening on port \(CiceroConstants.httpPort)")
+            print("[Cicero] HTTP server listening on \(CiceroConstants.httpHost):\(CiceroConstants.httpPort)")
         } catch {
             print("[Cicero] Failed to start HTTP server: \(error)")
         }
@@ -213,10 +217,15 @@ final class LocalServer {
             guard let body: AddSlideRequest = self.decodeBody(request) else {
                 return self.jsonError("Invalid request body")
             }
-            self.onMain {
+            return self.onMain { () -> HttpResponse in
+                if let err = RequestValidator.validateAfterIndex(
+                    body.afterIndex, slideCount: self.presentation.slides.count
+                ) {
+                    return self.jsonError(err)
+                }
                 self.presentation.addSlide(content: body.content, after: body.afterIndex)
+                return self.jsonResponse(SuccessResponse(success: true, message: "Slide added"))
             }
-            return self.jsonResponse(SuccessResponse(success: true, message: "Slide added"))
         }
 
         server.DELETE["/slides/:index"] = { [weak self] request in
@@ -281,20 +290,35 @@ final class LocalServer {
             guard let body: NavigateRequest = self.decodeBody(request) else {
                 return self.jsonError("Invalid request body")
             }
-            let resp = self.onMain { () -> NavigateResponse in
+            return self.onMain { () -> HttpResponse in
+                let validActions = ["next", "prev", "goto"]
+                guard validActions.contains(body.action) else {
+                    return self.jsonError(
+                        "Unknown navigate action '\(body.action)'. Valid: \(validActions.joined(separator: ", "))"
+                    )
+                }
                 switch body.action {
-                case "next": self.presentation.next()
-                case "prev": self.presentation.previous()
+                case "next":
+                    self.presentation.next()
+                case "prev":
+                    self.presentation.previous()
                 case "goto":
-                    if let idx = body.index { self.presentation.navigate(to: idx) }
+                    guard let idx = body.index else {
+                        return self.jsonError("'goto' requires an 'index' field")
+                    }
+                    if let err = RequestValidator.validateSlideIndex(
+                        idx, slideCount: self.presentation.slides.count
+                    ) {
+                        return self.jsonError(err)
+                    }
+                    self.presentation.navigate(to: idx)
                 default: break
                 }
-                return NavigateResponse(
+                return self.jsonResponse(NavigateResponse(
                     currentIndex: self.presentation.currentIndex,
                     totalSlides: self.presentation.slides.count
-                )
+                ))
             }
-            return self.jsonResponse(resp)
         }
 
         server.GET["/screenshot"] = { [weak self] request in
@@ -593,7 +617,7 @@ final class LocalServer {
             let resp = self.onMain {
                 FontResponse(
                     current: self.presentation.metadata.font,
-                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                    available: CuratedFonts.all
                 )
             }
             return self.jsonResponse(resp)
@@ -602,13 +626,16 @@ final class LocalServer {
         server.PUT["/font"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let body: SetFontRequest? = self.decodeBody(request)
+            if let err = RequestValidator.validateCuratedFont(body?.name, curated: CuratedFonts.all) {
+                return self.jsonError(err)
+            }
             self.onMain {
                 self.presentation.setFont(body?.name)
             }
             let resp = self.onMain {
                 FontResponse(
                     current: self.presentation.metadata.font,
-                    available: ["SF Pro Display", "Helvetica Neue", "Georgia", "Palatino", "Courier New", "Menlo", "SF Mono"]
+                    available: CuratedFonts.all
                 )
             }
             return self.jsonResponse(resp)

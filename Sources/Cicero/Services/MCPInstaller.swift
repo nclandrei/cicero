@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 
 // MARK: - Agent definitions
 
@@ -85,36 +86,44 @@ enum MCPAgent: String, CaseIterable, Identifiable {
 // MARK: - Installer
 
 class MCPInstaller: ObservableObject {
+    /// How CiceroMCP will be launched. `nil` means detection failed
+    /// (neither a bundled binary nor a Package.swift could be found).
+    @Published private(set) var launchSource: CiceroMCPLaunchSource?
+
+    /// Display path shown in Settings. Empty string when detection
+    /// failed (used by SettingsView to disable Install buttons and
+    /// surface the warning row).
     @Published var packagePath: String
+
     @Published private(set) var installedAgents: Set<MCPAgent> = []
     @Published var lastError: String?
 
     init() {
-        self.packagePath = Self.detectPackagePath() ?? ""
+        let source = Self.detectLaunchSource()
+        self.launchSource = source
+        self.packagePath = source?.displayPath ?? ""
+        if source == nil {
+            self.lastError = """
+                Could not locate the CiceroMCP server.
+                Install Cicero.app via Homebrew or run from a SwiftPM checkout.
+                """
+        }
         refreshStatus()
     }
 
-    // MARK: - Package path detection
+    // MARK: - Launch source detection
 
-    static func detectPackagePath() -> String? {
-        // Walk up from the executable looking for Package.swift
-        if let execURL = Bundle.main.executableURL?.resolvingSymlinksInPath() {
-            var dir = execURL.deletingLastPathComponent()
-            for _ in 0..<10 {
-                if FileManager.default.fileExists(atPath: dir.appendingPathComponent("Package.swift").path) {
-                    return dir.path
-                }
-                dir = dir.deletingLastPathComponent()
-            }
-        }
-        // Fall back to current working directory
-        let cwd = FileManager.default.currentDirectoryPath
-        if FileManager.default.fileExists(
-            atPath: URL(fileURLWithPath: cwd).appendingPathComponent("Package.swift").path
-        ) {
-            return cwd
-        }
-        return nil
+    /// Production detection: uses `Bundle.main` and the real `FileManager`.
+    /// All decision logic lives in `CiceroMCPLaunchSource.detect` (in Shared)
+    /// and is independently unit-tested.
+    static func detectLaunchSource() -> CiceroMCPLaunchSource? {
+        let fm = FileManager.default
+        return CiceroMCPLaunchSource.detect(
+            bundleURL: Bundle.main.bundleURL,
+            executableURL: Bundle.main.executableURL?.resolvingSymlinksInPath(),
+            currentDirectoryPath: fm.currentDirectoryPath,
+            fileExists: { fm.fileExists(atPath: $0.path) }
+        )
     }
 
     // MARK: - Status
@@ -144,11 +153,18 @@ class MCPInstaller: ObservableObject {
 
     func install(_ agent: MCPAgent) {
         lastError = nil
+        guard let source = launchSource else {
+            lastError = """
+                Cannot install: CiceroMCP could not be located. \
+                Install Cicero.app via Homebrew or build from source.
+                """
+            return
+        }
         do {
             if agent.isJSON {
-                try installJSON(agent)
+                try installJSON(agent, source: source)
             } else {
-                try installTOML(agent)
+                try installTOML(agent, source: source)
             }
             refreshStatus()
         } catch {
@@ -172,20 +188,6 @@ class MCPInstaller: ObservableObject {
 
     // MARK: - JSON helpers
 
-    private func serverEntry(for agent: MCPAgent) -> [String: Any] {
-        if agent == .openCode {
-            return [
-                "type": "local",
-                "command": ["swift", "run", "--package-path", packagePath, "CiceroMCP"],
-                "enabled": true,
-            ]
-        }
-        return [
-            "command": "swift",
-            "args": ["run", "--package-path", packagePath, "CiceroMCP"],
-        ]
-    }
-
     private func readJSON(at url: URL) -> [String: Any]? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -203,10 +205,10 @@ class MCPInstaller: ObservableObject {
         try data.write(to: url, options: .atomic)
     }
 
-    private func installJSON(_ agent: MCPAgent) throws {
+    private func installJSON(_ agent: MCPAgent, source: CiceroMCPLaunchSource) throws {
         var config = readJSON(at: agent.configURL) ?? [:]
         var servers = (config[agent.serversKey] as? [String: Any]) ?? [:]
-        servers["cicero"] = serverEntry(for: agent)
+        servers["cicero"] = source.serverEntry(forOpenCode: agent == .openCode)
         config[agent.serversKey] = servers
         try writeJSON(config, to: agent.configURL)
     }
@@ -221,7 +223,7 @@ class MCPInstaller: ObservableObject {
 
     // MARK: - TOML helpers (Codex)
 
-    private func installTOML(_ agent: MCPAgent) throws {
+    private func installTOML(_ agent: MCPAgent, source: CiceroMCPLaunchSource) throws {
         let url = agent.configURL
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
@@ -231,15 +233,7 @@ class MCPInstaller: ObservableObject {
         if contents.contains("[mcp_servers.cicero]") {
             contents = removeTOMLSection(contents, header: "[mcp_servers.cicero]")
         }
-        let escaped = packagePath.replacingOccurrences(of: "\\", with: "\\\\")
-        let entry = """
-
-            [mcp_servers.cicero]
-            command = "swift"
-            args = ["run", "--package-path", "\(escaped)", "CiceroMCP"]
-
-            """
-        contents += entry
+        contents += source.tomlEntry()
         try contents.write(to: url, atomically: true, encoding: .utf8)
     }
 

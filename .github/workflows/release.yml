@@ -25,6 +25,41 @@ jobs:
           echo "tag=$(date -u +'%Y%m%d.%H%M%S')" >> "$GITHUB_OUTPUT"
           echo "display=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
+      - name: Verify Sparkle public key
+        env:
+          SPARKLE_EDDSA_PUBLIC_KEY: ${{ secrets.SPARKLE_EDDSA_PUBLIC_KEY }}
+        run: |
+          # Out-of-band verification: the committed docs/sparkle-public-key.txt
+          # must agree with the GitHub secret. If they diverge, either the
+          # secret was rotated without committing the new public key, or the
+          # committed file is stale — either way we refuse to ship.
+          KEY_FILE="docs/sparkle-public-key.txt"
+          if [ ! -f "$KEY_FILE" ]; then
+            echo "::error::missing $KEY_FILE — commit the Sparkle EdDSA public key"
+            exit 1
+          fi
+
+          # Strip comment lines and blank lines, then trim whitespace.
+          COMMITTED=$(grep -v '^[[:space:]]*#' "$KEY_FILE" | tr -d '[:space:]')
+          SECRET=$(printf '%s' "$SPARKLE_EDDSA_PUBLIC_KEY" | tr -d '[:space:]')
+
+          if [ -z "$COMMITTED" ]; then
+            echo "::error::$KEY_FILE contains no key (only comments?). Paste the real EdDSA public key."
+            exit 1
+          fi
+          if [ -z "$SECRET" ]; then
+            echo "::error::secrets.SPARKLE_EDDSA_PUBLIC_KEY is empty"
+            exit 1
+          fi
+
+          if [ "$COMMITTED" != "$SECRET" ]; then
+            echo "::error::Sparkle public key drift: secrets.SPARKLE_EDDSA_PUBLIC_KEY does not match $KEY_FILE"
+            echo "Either update the GitHub secret to match the committed key, or commit a new key file."
+            exit 1
+          fi
+
+          echo "Sparkle public key matches committed value."
+
       - name: Import signing certificate
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
@@ -50,15 +85,42 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
-      - name: Build release binary
-        run: swift build -c release
+      - name: Build release binaries (universal)
+        run: |
+          # Build per-arch then lipo. SwiftPM's multi-arch single-invocation
+          # has historically choked on some dependencies (Sparkle xcframework,
+          # mixed binary deps); per-arch + lipo is the boring reliable path.
+          swift build -c release --arch arm64
+          ARM_BIN_PATH=$(swift build -c release --arch arm64 --show-bin-path)
+          cp "$ARM_BIN_PATH/Cicero" "$RUNNER_TEMP/Cicero.arm64"
+          cp "$ARM_BIN_PATH/CiceroMCP" "$RUNNER_TEMP/CiceroMCP.arm64"
+
+          swift build -c release --arch x86_64
+          X86_BIN_PATH=$(swift build -c release --arch x86_64 --show-bin-path)
+          cp "$X86_BIN_PATH/Cicero" "$RUNNER_TEMP/Cicero.x86_64"
+          cp "$X86_BIN_PATH/CiceroMCP" "$RUNNER_TEMP/CiceroMCP.x86_64"
+
+          mkdir -p "$RUNNER_TEMP/universal"
+          lipo -create "$RUNNER_TEMP/Cicero.arm64" "$RUNNER_TEMP/Cicero.x86_64" \
+            -output "$RUNNER_TEMP/universal/Cicero"
+          lipo -create "$RUNNER_TEMP/CiceroMCP.arm64" "$RUNNER_TEMP/CiceroMCP.x86_64" \
+            -output "$RUNNER_TEMP/universal/CiceroMCP"
+
+          # Sanity-check both archs are present in each binary.
+          lipo -info "$RUNNER_TEMP/universal/Cicero"
+          lipo -info "$RUNNER_TEMP/universal/CiceroMCP"
+
+          # Reference path for downstream steps. Use the arm64 build dir for
+          # framework copy (Sparkle.framework is itself fat).
+          echo "UNIVERSAL_BIN=$RUNNER_TEMP/universal" >> "$GITHUB_ENV"
+          echo "FRAMEWORK_BIN_PATH=$ARM_BIN_PATH" >> "$GITHUB_ENV"
 
       - name: Create .app bundle
         run: |
           APP="Cicero.app"
-          BIN_PATH=$(swift build -c release --show-bin-path)
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp "$BIN_PATH/Cicero" "$APP/Contents/MacOS/"
+          cp "$UNIVERSAL_BIN/Cicero" "$APP/Contents/MacOS/Cicero"
+          cp "$UNIVERSAL_BIN/CiceroMCP" "$APP/Contents/MacOS/CiceroMCP"
           install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/Cicero"
           cp Sources/Cicero/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
           cat > "$APP/Contents/Info.plist" << PLIST
@@ -98,9 +160,10 @@ jobs:
 
       - name: Embed Sparkle framework
         run: |
-          BIN_PATH=$(swift build -c release --show-bin-path)
+          # Sparkle ships as a fat xcframework; either per-arch build dir has
+          # the same Sparkle.framework, so we just pick the arm64 one.
           mkdir -p Cicero.app/Contents/Frameworks
-          cp -R "$BIN_PATH/Sparkle.framework" Cicero.app/Contents/Frameworks/
+          cp -R "$FRAMEWORK_BIN_PATH/Sparkle.framework" Cicero.app/Contents/Frameworks/
 
       - name: Codesign
         env:
@@ -114,6 +177,17 @@ jobs:
             sort -rz | while IFS= read -r -d '' item; do
             codesign --force --sign "$IDENTITY" --options runtime --timestamp "$item"
           done
+
+          # Sign the bundled CiceroMCP helper executable explicitly. --deep
+          # on the outer bundle is deprecated and unreliable for nested
+          # Mach-O binaries that aren't XPC/dylib/framework. We give it the
+          # same hardened-runtime + entitlements as the host app so it
+          # inherits the notarization ticket cleanly.
+          codesign --force --sign "$IDENTITY" \
+            --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --timestamp \
+            Cicero.app/Contents/MacOS/CiceroMCP
 
           # Sign the main app
           codesign --force --sign "$IDENTITY" \
@@ -161,7 +235,6 @@ jobs:
           sleep 60
 
       - name: Staple
-        continue-on-error: true
         run: |
           for i in $(seq 1 5); do
             if xcrun stapler staple Cicero.app; then
@@ -170,7 +243,7 @@ jobs:
             echo "Staple attempt $i failed, waiting 30s..."
             sleep 30
           done
-          echo "::warning::Stapling failed — app is still notarized and will work, Gatekeeper checks online instead"
+          echo "::error::Stapling failed after 5 attempts — refusing to ship unstapled build"
           exit 1
 
       - name: Re-package
@@ -239,6 +312,7 @@ jobs:
             echo "  depends_on macos: \">= :sonoma\""
             echo ""
             echo "  app \"Cicero.app\""
+            echo "  binary \"#{appdir}/Cicero.app/Contents/MacOS/CiceroMCP\", target: \"cicero-mcp\""
             echo ""
             echo "  zap trash: ["
             echo "    \"~/Library/Preferences/com.andreinicolas.Cicero.plist\","
