@@ -294,6 +294,22 @@ final class Presentation {
         Questions?
         """
         loadMarkdown(sample)
+        applyUserDefaults()
+    }
+
+    /// Applies the user's saved default theme/font to the freshly loaded
+    /// presentation. Called from `loadSamplePresentation()` and any other
+    /// new-blank-presentation path. Doesn't touch presentations loaded
+    /// from disk — those already carry their own metadata.
+    private func applyUserDefaults() {
+        let userTheme = AppDefaults.defaultTheme
+        if userTheme != "auto" && userTheme != metadata.theme {
+            setTheme(userTheme)
+        }
+        let userFont = AppDefaults.defaultFont
+        if userFont != metadata.font {
+            setFont(userFont)
+        }
     }
 
     /// Stores an image and returns the markdown snippet to insert.

@@ -111,6 +111,7 @@ struct CiceroApp: App {
                     let panel = NSSavePanel()
                     panel.allowedContentTypes = [.pdf]
                     panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".pdf"
+                    panel.directoryURL = AppDefaults.resolvedExportLocation
                     if panel.runModal() == .OK, let url = panel.url {
                         let service = PDFExportService(
                             screenshotService: ScreenshotService(presentation: presentation)
@@ -132,6 +133,7 @@ struct CiceroApp: App {
                     let panel = NSSavePanel()
                     panel.allowedContentTypes = [.html]
                     panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".html"
+                    panel.directoryURL = AppDefaults.resolvedExportLocation
                     if panel.runModal() == .OK, let url = panel.url {
                         let html = HTMLExportService.exportHTML(
                             metadata: presentation.metadata,
