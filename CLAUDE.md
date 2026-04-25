@@ -20,7 +20,7 @@ IPC: CiceroMCP ↔ Cicero app via local HTTP server on `localhost:19847`
 ## Dependencies
 
 - MarkdownUI (gonzalezreal/swift-markdown-ui) — Rich markdown rendering
-- Splash (JohnSundell/Splash) — Swift syntax highlighting (available, not yet integrated)
+- Splash (JohnSundell/Splash) — Swift syntax highlighting; integrated for Swift code fences in the slide renderer (`SlideView.swift`, `SlideLayoutViews.swift`), the editor highlighter (`MarkdownHighlighter.swift`), and the screenshot service (`ScreenshotService.swift`). Non-Swift fences render as themed plain text.
 - Swifter (httpswift/swifter) — Lightweight HTTP server for IPC
 - MCP Swift SDK (modelcontextprotocol/swift-sdk v0.12.0) — MCP protocol
 
