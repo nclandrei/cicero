@@ -35,7 +35,7 @@ You can also use the app directly. It has a split-pane editor with live preview,
 
 ### Build from source
 
-Requires Xcode 15+ / Swift 6.0.
+Requires Xcode 16+ and Swift 6.0+ (Swift 6.0 ships with Xcode 16).
 
 ```bash
 swift build
