@@ -376,6 +376,24 @@ enum CiceroTools {
             inputSchema: .object(["type": "object", "properties": .object([:])]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+        Tool(
+            name: "pause_timer",
+            description: "Pause the running presentation timer, preserving elapsed seconds. No-op if the timer is not running.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "resume_timer",
+            description: "Resume a paused presentation timer, continuing to accumulate from the current elapsed seconds. No-op if the timer is not paused.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "reset_timer",
+            description: "Reset the presentation timer fully — stops it and zeroes elapsed time.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
 
         // MARK: - Save & markdown
 
@@ -782,6 +800,18 @@ enum CiceroToolHandler {
         case "stop_timer":
             let _: TimerResponse = try await client.postEmpty("/timer/stop")
             return textResult("Timer stopped.")
+
+        case "pause_timer":
+            let resp: TimerResponse = try await client.postEmpty("/timer/pause")
+            return textResult("Timer paused at \(resp.elapsedSeconds)s.")
+
+        case "resume_timer":
+            let resp: TimerResponse = try await client.postEmpty("/timer/resume")
+            return textResult("Timer resumed from \(resp.elapsedSeconds)s. Wall clock: \(resp.wallClock)")
+
+        case "reset_timer":
+            let _: TimerResponse = try await client.postEmpty("/timer/reset")
+            return textResult("Timer reset.")
 
         case "save_file":
             let resp: SaveResponse = try await client.postEmpty("/save")
