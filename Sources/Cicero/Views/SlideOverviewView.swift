@@ -22,6 +22,7 @@ struct SlideOverviewView: View {
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.escape)
+                    .accessibilityHint("Closes the slide overview")
             }
             .padding()
 
@@ -42,6 +43,7 @@ struct SlideOverviewView: View {
         SlideThumbCard(
             slide: slide,
             index: index,
+            total: presentation.slides.count,
             isSelected: index == presentation.currentIndex,
             isDragTarget: dropTargetIndex == index,
             isDragging: draggingIndex == index,
@@ -79,6 +81,7 @@ struct SlideOverviewView: View {
 private struct SlideThumbCard: View {
     let slide: Slide
     let index: Int
+    let total: Int
     let isSelected: Bool
     let isDragTarget: Bool
     let isDragging: Bool
@@ -120,6 +123,10 @@ private struct SlideThumbCard: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: action)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(SlideAccessibility.thumbnailLabel(index: index, total: total, title: slide.title))
+        .accessibilityHint("Activates this slide and closes the overview")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .opacity(isDragging ? 0.4 : 1.0)
         .scaleEffect(isDragTarget ? 1.03 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isDragTarget)
