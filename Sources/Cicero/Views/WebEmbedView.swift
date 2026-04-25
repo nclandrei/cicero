@@ -1,5 +1,7 @@
 import SwiftUI
 import WebKit
+import MarkdownUI
+import Splash
 import Shared
 
 // MARK: - Full-Slide Embed Layout
@@ -9,6 +11,7 @@ struct EmbedLayoutView: View {
     let content: String
     let embedURL: String?
     let theme: SlideTheme
+    var fontFamily: String? = nil
 
     var body: some View {
         ZStack {
@@ -22,9 +25,9 @@ struct EmbedLayoutView: View {
             if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack {
                     Spacer()
-                    Text(content)
-                        .font(.title2)
-                        .foregroundStyle(theme.text)
+                    Markdown(content)
+                        .markdownTheme(theme.markdownTheme(fontFamily: fontFamily))
+                        .markdownCodeSyntaxHighlighter(.splash(theme: theme.splashTheme))
                         .padding(.horizontal, 40)
                         .padding(.vertical, 20)
                         .background(.black.opacity(0.6))
