@@ -26,7 +26,7 @@ You can also use the app directly. It has a split-pane editor with live preview,
 - **Font picker** -- Choose from any installed system font directly from the toolbar.
 - **PDF and HTML export** -- Each slide renders at 1920x1080. HTML export is self-contained with reveal.js.
 - **GitHub publishing** -- OAuth device flow authentication. Publish decks as Gists and share via the web viewer.
-- **33 MCP tools** -- Full agent parity. An AI agent can do everything the GUI can: create, edit, reorder, theme, screenshot, present, export, and publish.
+- **43 MCP tools** -- Full agent parity. An AI agent can do everything the GUI can: create, edit, reorder, theme, screenshot, present, export, and publish.
 - **Proctor CLI** -- `swift run Proctor validate deck.md` to lint presentations from the terminal.
 - **File watching** -- Edits to the `.md` file on disk are picked up automatically.
 - **Undo/redo** -- Full edit history with keyboard shortcuts.
@@ -49,7 +49,7 @@ checkout or `swift run` required.
 
 ### Build from source
 
-Requires Xcode 15+ / Swift 6.0.
+Requires Xcode 16+ and Swift 6.0+ (Swift 6.0 ships with Xcode 16).
 
 ```bash
 swift build
@@ -283,7 +283,7 @@ docs/                  Web viewer (GitHub Pages)
 - Presenter mode renders slides fullscreen with a HUD overlay showing slide counter and elapsed time.
 - PDF export renders each slide at 1920x1080 into a multi-page PDF using the active theme.
 - HTML export produces a self-contained reveal.js file that works in any browser.
-- GitHub publishing uses the OAuth device flow. Tokens are stored in the macOS Keychain.
+- GitHub publishing uses the OAuth device flow. Tokens are stored as a 0600-permissioned plaintext file at `~/Library/Application Support/Cicero/github-token`. Keychain storage was tried first but rejected: ad-hoc-signed debug builds churn their signing identity on every rebuild, so Keychain re-prompts constantly and "Always Allow" never sticks.
 
 ## Development
 
