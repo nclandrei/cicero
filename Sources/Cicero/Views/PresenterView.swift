@@ -7,8 +7,16 @@ struct PresenterView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @FocusState private var isFocused: Bool
 
-    @State private var currentTool: PresenterTool = .none
-    @State private var drawingStrokes: [DrawingStroke] = []
+    /// Bridge between the SwiftUI `PresenterTool` enum and the model's
+    /// String-typed `activeTool`. MCP `set_presenter_tool` mutates
+    /// `presentation.activeTool`; reading through this binding is what
+    /// keeps the overlay in sync with remote tool changes.
+    private var currentTool: Binding<PresenterTool> {
+        Binding(
+            get: { PresenterTool(rawValue: presentation.activeTool) ?? .none },
+            set: { presentation.setPresenterTool($0.rawValue) }
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -27,7 +35,7 @@ struct PresenterView: View {
             }
 
             // Navigation overlay — only active when no tool is selected
-            if currentTool == .none {
+            if currentTool.wrappedValue == .none {
                 HStack(spacing: 0) {
                     // Left half — previous
                     Color.clear
@@ -42,17 +50,17 @@ struct PresenterView: View {
             }
 
             // Presenter tools overlay
-            if currentTool != .none {
+            if currentTool.wrappedValue != .none {
                 PresenterToolsOverlay(
-                    tool: currentTool,
-                    strokes: $drawingStrokes
+                    tool: currentTool.wrappedValue,
+                    strokes: drawingStrokesBinding
                 )
             }
 
             // Presenter toolbar (auto-hides)
             PresenterToolbar(
-                currentTool: $currentTool,
-                onClearDrawings: { drawingStrokes.removeAll() },
+                currentTool: currentTool,
+                onClearDrawings: { presentation.clearDrawings() },
                 onExit: {
                     presentation.isPresenting = false
                     dismissWindow(id: "presenter")
@@ -137,8 +145,8 @@ struct PresenterView: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            if currentTool != .none {
-                currentTool = .none
+            if currentTool.wrappedValue != .none {
+                currentTool.wrappedValue = .none
                 return .handled
             }
             presentation.isPresenting = false
@@ -146,21 +154,37 @@ struct PresenterView: View {
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "p")) { _ in
-            currentTool = currentTool == .pointer ? .none : .pointer
+            currentTool.wrappedValue = currentTool.wrappedValue == .pointer ? .none : .pointer
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in
-            currentTool = currentTool == .spotlight ? .none : .spotlight
+            currentTool.wrappedValue = currentTool.wrappedValue == .spotlight ? .none : .spotlight
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "d")) { _ in
-            currentTool = currentTool == .drawing ? .none : .drawing
+            currentTool.wrappedValue = currentTool.wrappedValue == .drawing ? .none : .drawing
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "c")) { _ in
-            drawingStrokes.removeAll()
+            presentation.clearDrawings()
             return .handled
         }
+    }
+
+    /// Bridge between the view's `DrawingStroke` (with color) and the model's
+    /// `drawingStrokes: [[CGPoint]]` (raw points only). Reading reconstructs
+    /// strokes with the default red color; writing extracts the points.
+    /// MCP `clear_drawings` zeros `presentation.drawingStrokes`, which causes
+    /// this binding to read as empty and clear the visible drawings.
+    private var drawingStrokesBinding: Binding<[DrawingStroke]> {
+        Binding(
+            get: {
+                presentation.drawingStrokes.map { DrawingStroke(points: $0) }
+            },
+            set: { newStrokes in
+                presentation.drawingStrokes = newStrokes.map { $0.points }
+            }
+        )
     }
 
     private var presenterTheme: SlideTheme {
