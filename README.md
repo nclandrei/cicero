@@ -264,7 +264,7 @@ docs/                  Web viewer (GitHub Pages)
 - Presenter mode renders slides fullscreen with a HUD overlay showing slide counter and elapsed time.
 - PDF export renders each slide at 1920x1080 into a multi-page PDF using the active theme.
 - HTML export produces a self-contained reveal.js file that works in any browser.
-- GitHub publishing uses the OAuth device flow. Tokens are stored in the macOS Keychain.
+- GitHub publishing uses the OAuth device flow. Tokens are stored as a 0600-permissioned plaintext file at `~/Library/Application Support/Cicero/github-token`. Keychain storage was tried first but rejected: ad-hoc-signed debug builds churn their signing identity on every rebuild, so Keychain re-prompts constantly and "Always Allow" never sticks.
 
 ## Development
 
