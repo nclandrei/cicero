@@ -101,7 +101,7 @@ final class LocalServer {
             }
         }
 
-        server.PUT["/slides/bulk"] = { [weak self] request in
+        server.PUT["/slides-bulk"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: BulkSetSlidesRequest = self.decodeBody(request) else {
                 return self.jsonError("Invalid request body. Expected {\"updates\": [{\"index\": Int, \"content\": String}]}")

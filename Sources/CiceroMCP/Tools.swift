@@ -721,7 +721,7 @@ enum CiceroToolHandler {
             let updatesData = try JSONEncoder().encode(updatesValue)
             let updates = try JSONDecoder().decode([BulkSlideUpdate].self, from: updatesData)
             let resp: BulkSetSlidesResponse = try await client.put(
-                "/slides/bulk",
+                "/slides-bulk",
                 body: BulkSetSlidesRequest(updates: updates)
             )
             return textResult("Updated \(resp.updatedCount) of \(resp.totalSlides) slides.")
