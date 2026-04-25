@@ -1,3 +1,5 @@
+import AppKit
+import Shared
 import SwiftUI
 
 struct SettingsView: View {
@@ -10,6 +12,14 @@ struct SettingsView: View {
     var onSignOut: () -> Void
     @ObservedObject var updater: UpdaterController
     @ObservedObject var mcpInstaller: MCPInstaller
+
+    // MARK: - Defaults state mirrors AppDefaults; the view writes through
+    // setters below on every change.
+    @State private var defaultTheme: String = AppDefaults.defaultTheme
+    @State private var defaultFont: String = AppDefaults.defaultFont
+    @State private var defaultExportLocation: URL? = AppDefaults.defaultExportLocation
+    @State private var httpPortText: String = String(AppDefaults.httpPort)
+    @State private var httpPortError: String?
 
     var body: some View {
         Form {
@@ -176,10 +186,136 @@ struct SettingsView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
+
+            defaultsSection
         }
         .formStyle(.grouped)
         .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Defaults section
+
+    private var defaultsSection: some View {
+        Section {
+            Picker("Default theme", selection: $defaultTheme) {
+                ForEach(AppDefaultsValidator.themeOptions(), id: \.self) { name in
+                    Text(themeDisplayName(name)).tag(name)
+                }
+            }
+            .onChange(of: defaultTheme) { _, newValue in
+                AppDefaults.defaultTheme = newValue
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Default export location")
+                        .fontWeight(.medium)
+                    Text(defaultExportLocation?.path ?? "~/Documents")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer()
+                if defaultExportLocation != nil {
+                    Button("Clear") {
+                        defaultExportLocation = nil
+                        AppDefaults.defaultExportLocation = nil
+                    }
+                    .controlSize(.small)
+                }
+                Button("Browse...") { browseForExportLocation() }
+                    .controlSize(.small)
+            }
+
+            Picker("Default font", selection: $defaultFont) {
+                ForEach(CuratedFonts.all, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+            }
+            .onChange(of: defaultFont) { _, newValue in
+                AppDefaults.defaultFont = newValue
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("HTTP port")
+                    Spacer()
+                    TextField("Port", text: $httpPortText)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                        .onSubmit { commitPort() }
+                        .onChange(of: httpPortText) { _, _ in
+                            // Validate as the user types so we can show feedback,
+                            // but only persist on submit/blur via commitPort().
+                            validatePortInput()
+                        }
+                }
+                if let httpPortError {
+                    Text(httpPortError)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                } else {
+                    Text("Restart Cicero for port changes to take effect.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        } header: {
+            Label("Defaults", systemImage: "slider.horizontal.3")
+        } footer: {
+            Text("These defaults apply to new presentations. Existing files keep their saved theme and font.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        // TODO: keyboard shortcut customization (future)
+    }
+
+    private func themeDisplayName(_ name: String) -> String {
+        if name == "auto" { return "Auto (system)" }
+        return name.capitalized
+    }
+
+    private func browseForExportLocation() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Choose"
+        if let current = defaultExportLocation {
+            panel.directoryURL = current
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            defaultExportLocation = url
+            AppDefaults.defaultExportLocation = url
+        }
+    }
+
+    private func validatePortInput() {
+        guard let value = Int(httpPortText.trimmingCharacters(in: .whitespaces)) else {
+            httpPortError = "Enter a number between \(AppDefaultsValidator.minPort) and \(AppDefaultsValidator.maxPort)."
+            return
+        }
+        if AppDefaultsValidator.isValidPort(value) {
+            httpPortError = nil
+        } else {
+            httpPortError = "Port must be between \(AppDefaultsValidator.minPort) and \(AppDefaultsValidator.maxPort)."
+        }
+    }
+
+    private func commitPort() {
+        guard let value = Int(httpPortText.trimmingCharacters(in: .whitespaces)),
+              AppDefaultsValidator.isValidPort(value)
+        else {
+            // Reset the field to the last persisted value.
+            httpPortText = String(AppDefaults.httpPort)
+            httpPortError = nil
+            return
+        }
+        AppDefaults.httpPort = value
+        httpPortError = nil
     }
 
     private var lastCheckedText: String {
