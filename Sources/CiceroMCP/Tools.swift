@@ -81,6 +81,30 @@ enum CiceroTools {
         ),
 
         Tool(
+            name: "bulk_set_slides",
+            description: "Apply multiple slide content updates in a single transactional call. If any provided index is out of range, no updates are applied.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "updates": .object([
+                        "type": "array",
+                        "description": "Array of {index, content} objects. Index is 0-based.",
+                        "items": .object([
+                            "type": "object",
+                            "properties": .object([
+                                "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                                "content": .object(["type": "string", "description": "New markdown content for the slide"]),
+                            ]),
+                            "required": .array([.string("index"), .string("content")]),
+                        ]),
+                    ]),
+                ]),
+                "required": .array([.string("updates")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
+        Tool(
             name: "duplicate_slide",
             description: "Duplicate a slide, inserting the copy immediately after the original",
             inputSchema: .object([
@@ -519,6 +543,19 @@ enum CiceroToolHandler {
                 body: ReorderRequest(from: from, to: to)
             )
             return textResult("Moved slide from position \(from + 1) to \(to + 1).")
+
+        case "bulk_set_slides":
+            // Round-trip args[updates] through JSON to decode into our DTOs.
+            guard let updatesValue = arguments?["updates"] else {
+                return textResult("Missing 'updates' argument.")
+            }
+            let updatesData = try JSONEncoder().encode(updatesValue)
+            let updates = try JSONDecoder().decode([BulkSlideUpdate].self, from: updatesData)
+            let resp: BulkSetSlidesResponse = try await client.put(
+                "/slides/bulk",
+                body: BulkSetSlidesRequest(updates: updates)
+            )
+            return textResult("Updated \(resp.updatedCount) of \(resp.totalSlides) slides.")
 
         case "duplicate_slide":
             let index = arguments?["index"]?.intValue ?? 0

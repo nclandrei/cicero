@@ -97,6 +97,23 @@ final class LocalServer {
             }
         }
 
+        server.PUT["/slides/bulk"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: BulkSetSlidesRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"updates\": [{\"index\": Int, \"content\": String}]}")
+            }
+            return self.onMain {
+                if let err = RequestValidator.validateBulk(body, slideCount: self.presentation.slides.count) {
+                    return self.jsonError(err)
+                }
+                let applied = self.presentation.bulkUpdateSlides(body.updates)
+                return self.jsonResponse(BulkSetSlidesResponse(
+                    updatedCount: applied,
+                    totalSlides: self.presentation.slides.count
+                ))
+            }
+        }
+
         server.PUT["/slides/:index"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let index = self.pathInt(request, ":index"),

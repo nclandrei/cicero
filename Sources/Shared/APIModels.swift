@@ -246,6 +246,34 @@ public struct UpdateSlideRequest: Codable, Sendable {
     }
 }
 
+public struct BulkSlideUpdate: Codable, Sendable {
+    public let index: Int
+    public let content: String
+
+    public init(index: Int, content: String) {
+        self.index = index
+        self.content = content
+    }
+}
+
+public struct BulkSetSlidesRequest: Codable, Sendable {
+    public let updates: [BulkSlideUpdate]
+
+    public init(updates: [BulkSlideUpdate]) {
+        self.updates = updates
+    }
+}
+
+public struct BulkSetSlidesResponse: Codable, Sendable {
+    public let updatedCount: Int
+    public let totalSlides: Int
+
+    public init(updatedCount: Int, totalSlides: Int) {
+        self.updatedCount = updatedCount
+        self.totalSlides = totalSlides
+    }
+}
+
 public struct AddSlideRequest: Codable, Sendable {
     public let content: String
     public let afterIndex: Int?

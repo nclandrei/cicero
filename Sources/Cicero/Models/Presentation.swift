@@ -135,6 +135,22 @@ final class Presentation {
         rebuildMarkdown()
     }
 
+    /// Apply multiple slide content updates atomically. Caller must ensure all indices
+    /// are valid; out-of-range entries are ignored. Rebuilds markdown once at the end.
+    @discardableResult
+    func bulkUpdateSlides(_ updates: [BulkSlideUpdate]) -> Int {
+        var applied = 0
+        for update in updates {
+            guard update.index >= 0 && update.index < slides.count else { continue }
+            slides[update.index] = Slide(id: update.index, content: update.content)
+            applied += 1
+        }
+        if applied > 0 {
+            rebuildMarkdown()
+        }
+        return applied
+    }
+
     func duplicateSlide(at index: Int) {
         guard index >= 0 && index < slides.count else { return }
         let original = slides[index]
