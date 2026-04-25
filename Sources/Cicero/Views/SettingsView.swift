@@ -29,6 +29,7 @@ struct SettingsView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
                             .foregroundColor(.green)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             if let username = githubUsername {
                                 Text(username)
@@ -44,6 +45,7 @@ struct SettingsView: View {
                         Spacer()
                         Button("Sign Out") { onSignOut() }
                             .controlSize(.regular)
+                            .accessibilityHint("Disconnects this Mac from your GitHub account")
                     }
                 } else if isAuthenticating {
                     if let code = authUserCode {
@@ -71,6 +73,7 @@ struct SettingsView: View {
                         Image(systemName: "person.crop.circle")
                             .font(.title2)
                             .foregroundColor(.secondary)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("GitHub")
                                 .fontWeight(.medium)
@@ -82,12 +85,15 @@ struct SettingsView: View {
                         Button("Sign In...") { onSignIn() }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.regular)
+                            .accessibilityLabel("Sign in to GitHub")
+                            .accessibilityHint("Starts the GitHub device-code flow in your browser")
                     }
 
                     if let error = authError {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.red)
+                                .accessibilityHidden(true)
                             Text(error)
                                 .font(.subheadline)
                                 .foregroundColor(.red)
@@ -117,12 +123,14 @@ struct SettingsView: View {
                         Button("Check for Updates") { updater.checkForUpdates() }
                             .controlSize(.regular)
                             .disabled(!updater.canCheckForUpdates)
+                            .accessibilityHint("Asks the updater to look for a newer Cicero release")
                     }
                 } else {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.down.circle")
                             .font(.title2)
                             .foregroundColor(.secondary)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Updates unavailable")
                                 .fontWeight(.medium)
@@ -144,6 +152,7 @@ struct SettingsView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.title2)
                             .foregroundColor(.orange)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Package path not detected")
                                 .fontWeight(.medium)
@@ -157,11 +166,13 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "folder")
                             .foregroundColor(.secondary)
+                            .accessibilityHidden(true)
                         Text(mcpInstaller.packagePath)
                             .font(.system(.subheadline, design: .monospaced))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .accessibilityLabel("Package path \(mcpInstaller.packagePath)")
                     }
                 }
 
@@ -173,6 +184,7 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.red)
+                            .accessibilityHidden(true)
                         Text(error)
                             .font(.subheadline)
                             .foregroundColor(.red)
@@ -216,6 +228,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .accessibilityLabel("Current export location: \(defaultExportLocation?.path ?? "Documents folder")")
                 }
                 Spacer()
                 if defaultExportLocation != nil {
@@ -224,9 +237,13 @@ struct SettingsView: View {
                         AppDefaults.defaultExportLocation = nil
                     }
                     .controlSize(.small)
+                    .accessibilityLabel("Clear export location")
+                    .accessibilityHint("Resets the default export location to the Documents folder")
                 }
                 Button("Browse...") { browseForExportLocation() }
                     .controlSize(.small)
+                    .accessibilityLabel("Browse for export location")
+                    .accessibilityHint("Opens a folder picker to choose where exports are saved")
             }
 
             Picker("Default font", selection: $defaultFont) {
@@ -251,6 +268,8 @@ struct SettingsView: View {
                             // but only persist on submit/blur via commitPort().
                             validatePortInput()
                         }
+                        .accessibilityLabel("HTTP port")
+                        .accessibilityHint("Sets the loopback port the Cicero HTTP API listens on. Requires restart.")
                 }
                 if let httpPortError {
                     Text(httpPortError)
@@ -341,6 +360,7 @@ private struct MCPAgentRow: View {
             Image(systemName: agent.iconName)
                 .frame(width: 20)
                 .foregroundColor(.secondary)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(agent.displayName)
                     .fontWeight(.medium)
@@ -354,12 +374,17 @@ private struct MCPAgentRow: View {
             if isInstalled {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
+                    .accessibilityLabel("Installed")
                 Button("Remove") { installer.uninstall(agent) }
                     .controlSize(.small)
+                    .accessibilityLabel("Remove \(agent.displayName) integration")
+                    .accessibilityHint("Uninstalls the Cicero MCP server from this agent")
             } else {
                 Button("Install") { installer.install(agent) }
                     .controlSize(.small)
                     .disabled(installer.packagePath.isEmpty)
+                    .accessibilityLabel("Install \(agent.displayName) integration")
+                    .accessibilityHint("Installs the Cicero MCP server for this agent")
             }
         }
     }
