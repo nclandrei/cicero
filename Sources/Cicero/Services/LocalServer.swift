@@ -1017,6 +1017,7 @@ final class LocalServer {
             return self.jsonResponse(SearchResponse(query: decoded, matches: matches))
         }
 
+
         server.POST["/publish"] = { [weak self] request in
             guard let self else { return .internalServerError }
             let body: PublishGistRequest? = self.decodeBody(request)

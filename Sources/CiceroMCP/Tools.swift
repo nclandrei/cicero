@@ -587,7 +587,6 @@ enum CiceroTools {
             ]),
             annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
-
         // MARK: - Find & Replace
 
         Tool(

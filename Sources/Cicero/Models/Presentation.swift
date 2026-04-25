@@ -32,6 +32,10 @@ final class Presentation {
 
     var timerLifecycle: PresentationTimerLifecycle { timerState.state }
 
+    // MARK: - Autosave
+    let autosave = AutosaveScheduler(debounceInterval: 2.0)
+    private var autosaveWorkItem: DispatchWorkItem?
+
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
         return slides[currentIndex]
@@ -115,6 +119,9 @@ final class Presentation {
         slides = result.slides
         currentIndex = min(currentIndex, max(0, slides.count - 1))
         isDirty = false
+        autosave.cancel()
+        autosaveWorkItem?.cancel()
+        autosaveWorkItem = nil
     }
 
     func updateFromEditor(_ content: String) {
@@ -124,6 +131,7 @@ final class Presentation {
         slides = result.slides
         currentIndex = min(currentIndex, max(0, slides.count - 1))
         isDirty = true
+        scheduleAutosave()
     }
 
     // MARK: - Undo/Redo
@@ -136,6 +144,7 @@ final class Presentation {
         slides = result.slides
         currentIndex = min(currentIndex, max(0, slides.count - 1))
         isDirty = true
+        scheduleAutosave()
         return true
     }
 
@@ -147,6 +156,7 @@ final class Presentation {
         slides = result.slides
         currentIndex = min(currentIndex, max(0, slides.count - 1))
         isDirty = true
+        scheduleAutosave()
         return true
     }
 
@@ -246,6 +256,9 @@ final class Presentation {
         guard let path = filePath else { return }
         try markdown.write(to: path, atomically: true, encoding: .utf8)
         isDirty = false
+        autosave.cancel()
+        autosaveWorkItem?.cancel()
+        autosaveWorkItem = nil
     }
 
     /// Save the current markdown to a new path, creating intermediate directories
@@ -437,5 +450,31 @@ final class Presentation {
     private func rebuildMarkdown() {
         markdown = SlideParser.serialize(metadata: metadata, slides: slides)
         isDirty = true
+        scheduleAutosave()
+    }
+
+    // MARK: - Autosave wiring
+
+    private func scheduleAutosave() {
+        guard filePath != nil else { return }
+        autosave.contentChanged(at: Date())
+        guard let due = autosave.pendingSaveDueAt else { return }
+        autosaveWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.fireAutosave()
+        }
+        autosaveWorkItem = work
+        let delay = max(0, due.timeIntervalSinceNow)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func fireAutosave() {
+        do {
+            try autosave.tick(at: Date()) { [weak self] in
+                try self?.save()
+            }
+        } catch {
+            errorMessage = "Autosave failed: \(error.localizedDescription)"
+        }
     }
 }

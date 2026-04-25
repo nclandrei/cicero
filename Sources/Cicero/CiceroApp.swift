@@ -57,9 +57,13 @@ struct CiceroApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .startPresentation)) { _ in
                     openWindow(id: "presenter")
+                    if NSScreen.screens.count > 1 {
+                        openWindow(id: "presenter-display")
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .stopPresentation)) { _ in
                     dismissWindow(id: "presenter")
+                    dismissWindow(id: "presenter-display")
                 }
         }
         .defaultSize(width: 1200, height: 700)
@@ -183,6 +187,11 @@ struct CiceroApp: App {
                     NotificationCenter.default.post(name: .toggleNotes, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .option])
+
+                Button("Show Presenter Display") {
+                    openWindow(id: "presenter-display")
+                }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
             }
         }
 
@@ -214,6 +223,13 @@ struct CiceroApp: App {
                 .environment(presentation)
         }
         .windowStyle(.hiddenTitleBar)
+
+        Window("Presenter Display", id: "presenter-display") {
+            PresenterDisplayView()
+                .environment(presentation)
+                .frame(minWidth: 800, minHeight: 500)
+        }
+        .defaultSize(width: 1200, height: 800)
     }
 
     // MARK: - Auth Actions
