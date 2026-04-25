@@ -298,6 +298,7 @@ struct ToolbarView: ToolbarContent {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".pdf"
+        panel.directoryURL = AppDefaults.resolvedExportLocation
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         isExportingPDF = true
@@ -321,6 +322,7 @@ struct ToolbarView: ToolbarContent {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.html]
         panel.nameFieldStringValue = (presentation.metadata.title ?? "Presentation") + ".html"
+        panel.directoryURL = AppDefaults.resolvedExportLocation
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let html = HTMLExportService.exportHTML(
