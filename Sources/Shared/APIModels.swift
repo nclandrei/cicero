@@ -70,6 +70,18 @@ public struct NavigateResponse: Codable, Sendable {
     }
 }
 
+public struct CurrentSlideResponse: Codable, Sendable {
+    public let currentIndex: Int
+    public let totalSlides: Int
+    public let slide: SlideInfo?
+
+    public init(currentIndex: Int, totalSlides: Int, slide: SlideInfo?) {
+        self.currentIndex = currentIndex
+        self.totalSlides = totalSlides
+        self.slide = slide
+    }
+}
+
 public struct ScreenshotResponse: Codable, Sendable {
     public let base64PNG: String
     public let slideIndex: Int
@@ -243,6 +255,74 @@ public struct UpdateSlideRequest: Codable, Sendable {
 
     public init(content: String) {
         self.content = content
+    }
+}
+
+public struct SetLayoutRequest: Codable, Sendable {
+    public let layout: String?
+
+    public init(layout: String? = nil) {
+        self.layout = layout
+    }
+}
+
+public struct SetSlideURLRequest: Codable, Sendable {
+    public let url: String?
+
+    public init(url: String? = nil) {
+        self.url = url
+    }
+}
+
+public struct SetMetadataRequest: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+    public let theme: String?
+    public let font: String?
+    public let transition: String?
+
+    public init(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: String? = nil
+    ) {
+        self.title = title
+        self.author = author
+        self.theme = theme
+        self.font = font
+        self.transition = transition
+    }
+}
+
+public struct MetadataResponse: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+    public let theme: String?
+    public let font: String?
+    public let transition: String?
+
+    public init(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: String? = nil
+    ) {
+        self.title = title
+        self.author = author
+        self.theme = theme
+        self.font = font
+        self.transition = transition
+    }
+}
+
+public struct SaveAsRequest: Codable, Sendable {
+    public let path: String
+
+    public init(path: String) {
+        self.path = path
     }
 }
 

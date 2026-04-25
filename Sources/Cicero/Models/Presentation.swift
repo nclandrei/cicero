@@ -46,6 +46,33 @@ final class Presentation {
         rebuildMarkdown()
     }
 
+    /// Update multiple top-level metadata fields at once. Each parameter is optional;
+    /// nil means "leave alone". Persisted by re-serializing the markdown frontmatter.
+    func updateMetadata(
+        title: String? = nil,
+        author: String? = nil,
+        theme: String? = nil,
+        font: String? = nil,
+        transition: PresentationTransition? = nil
+    ) {
+        if let title { metadata.title = title.isEmpty ? nil : title }
+        if let author { metadata.author = author.isEmpty ? nil : author }
+        if let theme {
+            metadata.theme = theme
+            if theme != "custom" {
+                metadata.themeBackground = nil
+                metadata.themeText = nil
+                metadata.themeHeading = nil
+                metadata.themeAccent = nil
+                metadata.themeCodeBackground = nil
+                metadata.themeCodeText = nil
+            }
+        }
+        if let font { metadata.font = font.isEmpty ? nil : font }
+        if let transition { metadata.transition = transition }
+        rebuildMarkdown()
+    }
+
     func setTheme(_ name: String) {
         metadata.theme = name
         if name != "custom" {
@@ -202,6 +229,19 @@ final class Presentation {
     func save() throws {
         guard let path = filePath else { return }
         try markdown.write(to: path, atomically: true, encoding: .utf8)
+        isDirty = false
+    }
+
+    /// Save the current markdown to a new path, creating intermediate directories
+    /// as needed. Updates `filePath` so subsequent `save()` calls write there.
+    func saveAs(url: URL) throws {
+        let parent = url.deletingLastPathComponent()
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: parent.path) {
+            try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        }
+        try markdown.write(to: url, atomically: true, encoding: .utf8)
+        filePath = url
         isDirty = false
     }
 

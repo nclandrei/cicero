@@ -180,6 +180,50 @@ final class LocalServer {
             }
         }
 
+        // MARK: - Per-slide metadata setters
+
+        server.PUT["/slides/:index/layout"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index") else {
+                return self.jsonError("Invalid slide index")
+            }
+            let body: SetLayoutRequest? = self.decodeBody(request)
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                if let layoutValue = body?.layout, !layoutValue.isEmpty {
+                    guard SlideLayout(rawValue: layoutValue) != nil else {
+                        return self.jsonError("Unknown layout '\(layoutValue)'. Valid: default, title, two-column, image-left, image-right, video, embed", status: 400)
+                    }
+                }
+                let oldContent = self.presentation.slides[index].content
+                let newContent = SlideParser.setSlideMetadataField(oldContent, key: "layout", value: body?.layout)
+                self.presentation.updateSlide(at: index, content: newContent)
+                let slide = self.presentation.slides[index]
+                return self.jsonResponse(SlideInfo(
+                    index: index,
+                    title: slide.title,
+                    content: slide.content,
+                    layout: slide.layout == .default ? nil : slide.layout.rawValue,
+                    imageURL: slide.imageURL,
+                    videoURL: slide.videoURL,
+                    embedURL: slide.embedURL,
+                    notes: slide.notes
+                ))
+            }
+        }
+
+        server.PUT["/slides/:index/image"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "image") ?? .internalServerError
+        }
+        server.PUT["/slides/:index/video"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "video") ?? .internalServerError
+        }
+        server.PUT["/slides/:index/embed"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "embed") ?? .internalServerError
+        }
+
         // MARK: - Speaker Notes
 
         server.GET["/slides/:index/notes"] = { [weak self] request in
@@ -276,11 +320,24 @@ final class LocalServer {
 
         server.GET["/current"] = { [weak self] _ in
             guard let self else { return .internalServerError }
-            let resp = self.onMain {
-                NavigateResponse(
-                    currentIndex: self.presentation.currentIndex,
-                    totalSlides: self.presentation.slides.count
+            let resp = self.onMain { () -> CurrentSlideResponse in
+                let idx = self.presentation.currentIndex
+                let total = self.presentation.slides.count
+                guard idx >= 0 && idx < total else {
+                    return CurrentSlideResponse(currentIndex: idx, totalSlides: total, slide: nil)
+                }
+                let s = self.presentation.slides[idx]
+                let info = SlideInfo(
+                    index: idx,
+                    title: s.title,
+                    content: s.content,
+                    layout: s.layout == .default ? nil : s.layout.rawValue,
+                    imageURL: s.imageURL,
+                    videoURL: s.videoURL,
+                    embedURL: s.embedURL,
+                    notes: s.notes
                 )
+                return CurrentSlideResponse(currentIndex: idx, totalSlides: total, slide: info)
             }
             return self.jsonResponse(resp)
         }
@@ -718,7 +775,78 @@ final class LocalServer {
             return self.jsonResponse(resp)
         }
 
+        // MARK: - Metadata
+
+        server.PUT["/metadata"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SetMetadataRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body")
+            }
+            // Validate provided fields up-front so we don't half-apply.
+            if let theme = body.theme, !MetadataValidator.isValidTheme(theme) {
+                let valid = ThemeRegistry.builtIn.map(\.name) + ["auto", "custom"]
+                return self.jsonError("Unknown theme '\(theme)'. Valid: \(valid.joined(separator: ", "))", status: 400)
+            }
+            if let font = body.font, !font.isEmpty, !MetadataValidator.isValidFont(font) {
+                return self.jsonError("Unknown font '\(font)'. Valid: \(CuratedFonts.all.joined(separator: ", "))", status: 400)
+            }
+            var transitionEnum: PresentationTransition? = nil
+            if let t = body.transition {
+                guard let parsed = PresentationTransition(rawValue: t) else {
+                    let valid = PresentationTransition.allCases.map(\.rawValue).joined(separator: ", ")
+                    return self.jsonError("Unknown transition '\(t)'. Valid: \(valid)", status: 400)
+                }
+                transitionEnum = parsed
+            }
+            self.onMain {
+                self.presentation.updateMetadata(
+                    title: body.title,
+                    author: body.author,
+                    theme: body.theme,
+                    font: body.font,
+                    transition: transitionEnum
+                )
+            }
+            let resp = self.onMain {
+                MetadataResponse(
+                    title: self.presentation.metadata.title,
+                    author: self.presentation.metadata.author,
+                    theme: self.presentation.metadata.theme,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
         // MARK: - Save
+
+        server.POST["/save_as"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SaveAsRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"path\": \"/abs/path.md\"}")
+            }
+            switch SaveAsPathValidator.validate(body.path) {
+            case .valid:
+                break
+            case .empty:
+                return self.jsonError("Path is empty")
+            case .notAbsolute:
+                return self.jsonError("Path must be absolute (start with '/')")
+            case .parentNotCreatable(let reason):
+                return self.jsonError(reason)
+            }
+            do {
+                let savedPath = try self.onMain { () -> String in
+                    let url = URL(fileURLWithPath: body.path)
+                    try self.presentation.saveAs(url: url)
+                    return url.path
+                }
+                return self.jsonResponse(SaveResponse(success: true, filePath: savedPath))
+            } catch {
+                return self.jsonError("Failed to save: \(error.localizedDescription)")
+            }
+        }
 
         server.POST["/save"] = { [weak self] _ in
             guard let self else { return .internalServerError }
@@ -851,6 +979,32 @@ final class LocalServer {
     }
 
     // MARK: - Helpers
+
+    private func handleSlideURLUpdate(request: HttpRequest, key: String) -> HttpResponse {
+        guard let index = self.pathInt(request, ":index") else {
+            return self.jsonError("Invalid slide index")
+        }
+        let body: SetSlideURLRequest? = self.decodeBody(request)
+        return self.onMain {
+            guard index >= 0 && index < self.presentation.slides.count else {
+                return self.jsonError("Slide index out of range", status: 404)
+            }
+            let oldContent = self.presentation.slides[index].content
+            let newContent = SlideParser.setSlideMetadataField(oldContent, key: key, value: body?.url)
+            self.presentation.updateSlide(at: index, content: newContent)
+            let slide = self.presentation.slides[index]
+            return self.jsonResponse(SlideInfo(
+                index: index,
+                title: slide.title,
+                content: slide.content,
+                layout: slide.layout == .default ? nil : slide.layout.rawValue,
+                imageURL: slide.imageURL,
+                videoURL: slide.videoURL,
+                embedURL: slide.embedURL,
+                notes: slide.notes
+            ))
+        }
+    }
 
     private func renderScreenshot(index: Int?, savePath: String? = nil) -> HttpResponse {
         let result = onMain { () -> (ScreenshotResponse, Data)? in

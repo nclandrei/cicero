@@ -282,6 +282,97 @@ public enum SlideParser {
         return result
     }
 
+    /// Mutate a single per-slide frontmatter field (`layout`, `image`, `video`, `embed`)
+    /// in raw slide content. Replaces the line if it exists, inserts at the top of the
+    /// frontmatter zone if it doesn't, or removes the line if `value` is nil/empty.
+    /// Body text and speaker notes are preserved exactly. Other frontmatter fields are
+    /// untouched.
+    public static func setSlideMetadataField(_ content: String, key: String, value: String?) -> String {
+        let allowedKeys: Set<String> = ["layout", "image", "video", "embed"]
+        let lowercaseKey = key.lowercased()
+        guard allowedKeys.contains(lowercaseKey) else { return content }
+
+        // Separate notes from main content so we don't accidentally mutate them.
+        let (mainBody, notes) = extractNotes(content)
+
+        // Walk lines, classifying frontmatter zone (recognized key:value lines, possibly
+        // with leading blank lines) vs body. Same logic as parseSlideMetadata.
+        let lines = mainBody.components(separatedBy: "\n")
+        var frontmatterIndices: [Int] = []  // indices of recognized frontmatter lines
+        var firstBodyIndex = lines.count
+        var seenContent = false
+
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !seenContent {
+                if trimmed.isEmpty {
+                    // Leading blank lines stay in frontmatter zone but aren't recognized lines.
+                    continue
+                }
+                let pair = trimmed.split(separator: ":", maxSplits: 1)
+                if pair.count == 2 {
+                    let lk = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+                    if allowedKeys.contains(lk) {
+                        frontmatterIndices.append(i)
+                        continue
+                    }
+                }
+                seenContent = true
+                firstBodyIndex = i
+                break
+            }
+        }
+        if !seenContent {
+            firstBodyIndex = lines.count
+        }
+
+        // Find existing line for this key, if any.
+        var existingIndex: Int? = nil
+        for i in frontmatterIndices {
+            let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+            let pair = trimmed.split(separator: ":", maxSplits: 1)
+            if pair.count == 2 {
+                let lk = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+                if lk == lowercaseKey {
+                    existingIndex = i
+                    break
+                }
+            }
+        }
+
+        var newLines = lines
+        let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let v = trimmedValue, !v.isEmpty {
+            let newLine = "\(lowercaseKey): \(v)"
+            if let idx = existingIndex {
+                newLines[idx] = newLine
+            } else {
+                // Insert at top of frontmatter zone (before first non-frontmatter content,
+                // skipping leading blank lines so we don't shove this in front of them).
+                let insertAt: Int
+                if let lastFM = frontmatterIndices.last {
+                    insertAt = lastFM + 1
+                } else {
+                    // No existing frontmatter — insert at very top.
+                    insertAt = 0
+                }
+                newLines.insert(newLine, at: insertAt)
+                _ = firstBodyIndex
+            }
+        } else {
+            // Remove the line if it exists.
+            if let idx = existingIndex {
+                newLines.remove(at: idx)
+            }
+        }
+
+        var rebuilt = newLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if let notes {
+            rebuilt += "\n\n<!-- notes\n\(notes)\n-->"
+        }
+        return rebuilt
+    }
+
     public static func parse(_ markdown: String) -> (metadata: PresentationMetadata, slides: [Slide]) {
         var content = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
         var metadata = PresentationMetadata()

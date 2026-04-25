@@ -81,6 +81,59 @@ enum CiceroTools {
         ),
 
         Tool(
+            name: "set_layout",
+            description: "Change the layout of an existing slide without overwriting its body. Pass null/omit layout to clear back to the default layout.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "layout": .object(["type": "string", "description": "Layout name: title, two-column, image-left, image-right, video, embed. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_image",
+            description: "Set the per-slide image URL (the `image:` line in slide metadata). Used by image-left and image-right layouts. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Image URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_video",
+            description: "Set the per-slide video URL (the `video:` line in slide metadata). Used by video layout. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Video URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_embed",
+            description: "Set the per-slide embed URL (the `embed:` line in slide metadata). Used by embed layout. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Embed URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
+        Tool(
             name: "duplicate_slide",
             description: "Duplicate a slide, inserting the copy immediately after the original",
             inputSchema: .object([
@@ -106,6 +159,12 @@ enum CiceroTools {
             description: "Navigate to the previous slide",
             inputSchema: .object(["type": "object", "properties": .object([:])]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "get_current",
+            description: "Get the current slide's index, total slide count, and full content (including layout, image/video/embed URLs, and notes).",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
         Tool(
             name: "goto_slide",
@@ -395,6 +454,24 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
 
+        // MARK: - Metadata
+
+        Tool(
+            name: "set_metadata",
+            description: "Update presentation-level frontmatter. Pass any subset of fields — only provided keys are updated. Theme, font, and transition are validated against known values.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "title": .object(["type": "string", "description": "Presentation title"]),
+                    "author": .object(["type": "string", "description": "Author name"]),
+                    "theme": .object(["type": "string", "description": "Theme name (built-in, 'auto', or 'custom')"]),
+                    "font": .object(["type": "string", "description": "Font family from the curated list"]),
+                    "transition": .object(["type": "string", "description": "Slide transition: none, fade, slide, push"]),
+                ]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
         // MARK: - Save & markdown
 
         Tool(
@@ -402,6 +479,18 @@ enum CiceroTools {
             description: "Save the current presentation to disk. Requires a file path (opened or previously saved).",
             inputSchema: .object(["type": "object", "properties": .object([:])]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "save_as",
+            description: "Save the current presentation to a new absolute path. Creates parent directories as needed and updates the presentation's file path.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "path": .object(["type": "string", "description": "Absolute path to save to (e.g. /Users/me/decks/talk.md)"]),
+                ]),
+                "required": .array([.string("path")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
             name: "get_markdown",
@@ -548,6 +637,55 @@ enum CiceroToolHandler {
             let _: SuccessResponse = try await client.postEmpty("/slides/\(index)/duplicate")
             return textResult("Slide \(index + 1) duplicated.")
 
+        case "set_layout":
+            let index = arguments?["index"]?.intValue ?? 0
+            let layout = arguments?["layout"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/layout",
+                body: SetLayoutRequest(layout: layout)
+            )
+            let displayLayout = resp.layout ?? "default"
+            return textResult("Layout for slide \(index + 1) set to: \(displayLayout)")
+
+        case "set_slide_image":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/image",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let imageURL = resp.imageURL {
+                return textResult("Image URL for slide \(index + 1) set to: \(imageURL)")
+            } else {
+                return textResult("Image URL for slide \(index + 1) cleared.")
+            }
+
+        case "set_slide_video":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/video",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let videoURL = resp.videoURL {
+                return textResult("Video URL for slide \(index + 1) set to: \(videoURL)")
+            } else {
+                return textResult("Video URL for slide \(index + 1) cleared.")
+            }
+
+        case "set_slide_embed":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/embed",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let embedURL = resp.embedURL {
+                return textResult("Embed URL for slide \(index + 1) set to: \(embedURL)")
+            } else {
+                return textResult("Embed URL for slide \(index + 1) cleared.")
+            }
+
         case "next_slide":
             let resp: NavigateResponse = try await client.post(
                 "/navigate", body: NavigateRequest(action: "next")
@@ -559,6 +697,20 @@ enum CiceroToolHandler {
                 "/navigate", body: NavigateRequest(action: "prev")
             )
             return textResult("Now on slide \(resp.currentIndex + 1) of \(resp.totalSlides).")
+
+        case "get_current":
+            let resp: CurrentSlideResponse = try await client.get("/current")
+            var text = "Slide \(resp.currentIndex + 1) of \(resp.totalSlides)"
+            if let slide = resp.slide {
+                if let layout = slide.layout {
+                    text += " [\(layout)]"
+                }
+                text += "\n\n\(slide.content)"
+                if let notes = slide.notes {
+                    text += "\n\nNotes: \(notes)"
+                }
+            }
+            return textResult(text)
 
         case "goto_slide":
             let index = arguments?["index"]?.intValue ?? 0
@@ -812,6 +964,34 @@ enum CiceroToolHandler {
         case "reset_timer":
             let _: TimerResponse = try await client.postEmpty("/timer/reset")
             return textResult("Timer reset.")
+
+        case "set_metadata":
+            let req = SetMetadataRequest(
+                title: arguments?["title"]?.stringValue,
+                author: arguments?["author"]?.stringValue,
+                theme: arguments?["theme"]?.stringValue,
+                font: arguments?["font"]?.stringValue,
+                transition: arguments?["transition"]?.stringValue
+            )
+            let resp: MetadataResponse = try await client.put("/metadata", body: req)
+            var text = "Metadata updated:\n"
+            if let title = resp.title { text += "  title: \(title)\n" }
+            if let author = resp.author { text += "  author: \(author)\n" }
+            if let theme = resp.theme { text += "  theme: \(theme)\n" }
+            if let font = resp.font { text += "  font: \(font)\n" }
+            if let transition = resp.transition { text += "  transition: \(transition)\n" }
+            return textResult(text)
+
+        case "save_as":
+            let path = arguments?["path"]?.stringValue ?? ""
+            let resp: SaveResponse = try await client.post(
+                "/save_as", body: SaveAsRequest(path: path)
+            )
+            if resp.success, let fp = resp.filePath {
+                return textResult("Saved to \(fp)")
+            } else {
+                return textResult("Save failed.")
+            }
 
         case "save_file":
             let resp: SaveResponse = try await client.postEmpty("/save")
