@@ -246,6 +246,22 @@ public struct UpdateSlideRequest: Codable, Sendable {
     }
 }
 
+public struct SetLayoutRequest: Codable, Sendable {
+    public let layout: String?
+
+    public init(layout: String? = nil) {
+        self.layout = layout
+    }
+}
+
+public struct SetSlideURLRequest: Codable, Sendable {
+    public let url: String?
+
+    public init(url: String? = nil) {
+        self.url = url
+    }
+}
+
 public struct AddSlideRequest: Codable, Sendable {
     public let content: String
     public let afterIndex: Int?

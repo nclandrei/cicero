@@ -176,6 +176,50 @@ final class LocalServer {
             }
         }
 
+        // MARK: - Per-slide metadata setters
+
+        server.PUT["/slides/:index/layout"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let index = self.pathInt(request, ":index") else {
+                return self.jsonError("Invalid slide index")
+            }
+            let body: SetLayoutRequest? = self.decodeBody(request)
+            return self.onMain {
+                guard index >= 0 && index < self.presentation.slides.count else {
+                    return self.jsonError("Slide index out of range", status: 404)
+                }
+                if let layoutValue = body?.layout, !layoutValue.isEmpty {
+                    guard SlideLayout(rawValue: layoutValue) != nil else {
+                        return self.jsonError("Unknown layout '\(layoutValue)'. Valid: default, title, two-column, image-left, image-right, video, embed", status: 400)
+                    }
+                }
+                let oldContent = self.presentation.slides[index].content
+                let newContent = SlideParser.setSlideMetadataField(oldContent, key: "layout", value: body?.layout)
+                self.presentation.updateSlide(at: index, content: newContent)
+                let slide = self.presentation.slides[index]
+                return self.jsonResponse(SlideInfo(
+                    index: index,
+                    title: slide.title,
+                    content: slide.content,
+                    layout: slide.layout == .default ? nil : slide.layout.rawValue,
+                    imageURL: slide.imageURL,
+                    videoURL: slide.videoURL,
+                    embedURL: slide.embedURL,
+                    notes: slide.notes
+                ))
+            }
+        }
+
+        server.PUT["/slides/:index/image"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "image") ?? .internalServerError
+        }
+        server.PUT["/slides/:index/video"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "video") ?? .internalServerError
+        }
+        server.PUT["/slides/:index/embed"] = { [weak self] request in
+            self?.handleSlideURLUpdate(request: request, key: "embed") ?? .internalServerError
+        }
+
         // MARK: - Speaker Notes
 
         server.GET["/slides/:index/notes"] = { [weak self] request in
@@ -785,6 +829,32 @@ final class LocalServer {
     }
 
     // MARK: - Helpers
+
+    private func handleSlideURLUpdate(request: HttpRequest, key: String) -> HttpResponse {
+        guard let index = self.pathInt(request, ":index") else {
+            return self.jsonError("Invalid slide index")
+        }
+        let body: SetSlideURLRequest? = self.decodeBody(request)
+        return self.onMain {
+            guard index >= 0 && index < self.presentation.slides.count else {
+                return self.jsonError("Slide index out of range", status: 404)
+            }
+            let oldContent = self.presentation.slides[index].content
+            let newContent = SlideParser.setSlideMetadataField(oldContent, key: key, value: body?.url)
+            self.presentation.updateSlide(at: index, content: newContent)
+            let slide = self.presentation.slides[index]
+            return self.jsonResponse(SlideInfo(
+                index: index,
+                title: slide.title,
+                content: slide.content,
+                layout: slide.layout == .default ? nil : slide.layout.rawValue,
+                imageURL: slide.imageURL,
+                videoURL: slide.videoURL,
+                embedURL: slide.embedURL,
+                notes: slide.notes
+            ))
+        }
+    }
 
     private func renderScreenshot(index: Int?, savePath: String? = nil) -> HttpResponse {
         let result = onMain { () -> (ScreenshotResponse, Data)? in

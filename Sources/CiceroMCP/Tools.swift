@@ -81,6 +81,59 @@ enum CiceroTools {
         ),
 
         Tool(
+            name: "set_layout",
+            description: "Change the layout of an existing slide without overwriting its body. Pass null/omit layout to clear back to the default layout.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "layout": .object(["type": "string", "description": "Layout name: title, two-column, image-left, image-right, video, embed. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_image",
+            description: "Set the per-slide image URL (the `image:` line in slide metadata). Used by image-left and image-right layouts. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Image URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_video",
+            description: "Set the per-slide video URL (the `video:` line in slide metadata). Used by video layout. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Video URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "set_slide_embed",
+            description: "Set the per-slide embed URL (the `embed:` line in slide metadata). Used by embed layout. Pass null/omit url to clear.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                    "url": .object(["type": "string", "description": "Embed URL. Omit or null to clear."]),
+                ]),
+                "required": .array([.string("index")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
+
+        Tool(
             name: "duplicate_slide",
             description: "Duplicate a slide, inserting the copy immediately after the original",
             inputSchema: .object([
@@ -524,6 +577,55 @@ enum CiceroToolHandler {
             let index = arguments?["index"]?.intValue ?? 0
             let _: SuccessResponse = try await client.postEmpty("/slides/\(index)/duplicate")
             return textResult("Slide \(index + 1) duplicated.")
+
+        case "set_layout":
+            let index = arguments?["index"]?.intValue ?? 0
+            let layout = arguments?["layout"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/layout",
+                body: SetLayoutRequest(layout: layout)
+            )
+            let displayLayout = resp.layout ?? "default"
+            return textResult("Layout for slide \(index + 1) set to: \(displayLayout)")
+
+        case "set_slide_image":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/image",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let imageURL = resp.imageURL {
+                return textResult("Image URL for slide \(index + 1) set to: \(imageURL)")
+            } else {
+                return textResult("Image URL for slide \(index + 1) cleared.")
+            }
+
+        case "set_slide_video":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/video",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let videoURL = resp.videoURL {
+                return textResult("Video URL for slide \(index + 1) set to: \(videoURL)")
+            } else {
+                return textResult("Video URL for slide \(index + 1) cleared.")
+            }
+
+        case "set_slide_embed":
+            let index = arguments?["index"]?.intValue ?? 0
+            let url = arguments?["url"]?.stringValue
+            let resp: SlideInfo = try await client.put(
+                "/slides/\(index)/embed",
+                body: SetSlideURLRequest(url: url)
+            )
+            if let embedURL = resp.embedURL {
+                return textResult("Embed URL for slide \(index + 1) set to: \(embedURL)")
+            } else {
+                return textResult("Embed URL for slide \(index + 1) cleared.")
+            }
 
         case "next_slide":
             let resp: NavigateResponse = try await client.post(
