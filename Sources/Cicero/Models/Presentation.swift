@@ -301,9 +301,7 @@ final class Presentation {
     // MARK: - Private
 
     private func reindexSlides() {
-        slides = slides.enumerated().map { index, slide in
-            Slide(id: index, content: slide.content, body: slide.body, layout: slide.layout, imageURL: slide.imageURL)
-        }
+        slides.reindex()
     }
 
     private func rebuildMarkdown() {

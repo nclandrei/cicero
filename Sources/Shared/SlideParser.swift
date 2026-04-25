@@ -18,7 +18,7 @@ public enum SlideLayout: String, Codable, Sendable {
 }
 
 public struct Slide: Codable, Identifiable, Sendable {
-    public let id: Int
+    public var id: Int
     /// Raw content including frontmatter lines (used for serialization/editor)
     public var content: String
     /// Content with frontmatter lines stripped (used for rendering)
@@ -369,5 +369,17 @@ public enum SlideParser {
             slides.append(Slide(id: index, content: raw))
         }
         return slides
+    }
+}
+
+public extension Array where Element == Slide {
+    /// Reassigns each slide's `id` to its current array index. Mutates in
+    /// place and preserves every other field on each slide (content, body,
+    /// layout, imageURL, videoURL, embedURL, notes). Use after any reorder,
+    /// duplicate, or removal operation.
+    mutating func reindex() {
+        for i in indices {
+            self[i].id = i
+        }
     }
 }
