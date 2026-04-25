@@ -40,6 +40,14 @@ POST /slides, /navigate, /presentation/start, /presentation/stop, /open, /create
 PUT /slides/:n
 DELETE /slides/:n
 
+## GitHub Auth
+
+`Sources/Cicero/Services/GitHubAuth.swift` writes the OAuth token as a 0600-permissioned
+plaintext file at `~/Library/Application Support/Cicero/github-token` (mirrors the `gh`
+CLI). Keychain was tried and rejected: SecItem ACLs are bound to the binary's code
+signature, and debug rebuilds churn that signature, producing repeated "Always Allow"
+prompts.
+
 ## Slide Format
 
 Markdown with YAML frontmatter, slides separated by `---`. Code blocks respected (not split).
