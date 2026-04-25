@@ -22,13 +22,15 @@ final class Presentation {
     let editHistory = EditHistory()
 
     // MARK: - Presenter Timer
-    var elapsedSeconds: Int = 0
+    private var timerState = PresentationTimerState()
     var wallClock: String = TimeFormatting.wallClock()
     private var timer: Timer?
 
-    var isTimerRunning: Bool {
-        timer != nil
-    }
+    var elapsedSeconds: Int { timerState.elapsedSeconds }
+
+    var isTimerRunning: Bool { timerState.isRunning }
+
+    var timerLifecycle: PresentationTimerLifecycle { timerState.state }
 
     var currentSlide: Slide? {
         guard currentIndex >= 0 && currentIndex < slides.count else { return nil }
@@ -281,21 +283,54 @@ final class Presentation {
 
     // MARK: - Timer
 
+    /// Start the timer fresh. Resets elapsed seconds to 0 and runs.
+    /// Idempotent across all states — calling startTimer always starts fresh.
     func startTimer() {
-        elapsedSeconds = 0
+        timerState.start()
         wallClock = TimeFormatting.wallClock()
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.elapsedSeconds += 1
-            self.wallClock = TimeFormatting.wallClock()
-        }
+        scheduleTimer()
     }
 
+    /// Pause the running timer, preserving elapsed seconds. No-op if not running.
+    /// Use resumeTimer() to continue accumulating from the paused elapsed value.
+    func pauseTimer() {
+        guard timerState.isRunning else { return }
+        timerState.pause()
+        timer?.invalidate()
+        timer = nil
+    }
+
+    /// Resume the timer from a paused state, continuing to accumulate from the
+    /// current elapsed seconds. No-op if not paused.
+    func resumeTimer() {
+        guard timerState.state == .paused else { return }
+        timerState.resume()
+        wallClock = TimeFormatting.wallClock()
+        scheduleTimer()
+    }
+
+    /// Reset the timer fully — invalidates the running source and zeroes elapsed.
+    /// Equivalent to stopTimer() but named for clarity at call sites.
+    func resetTimer() {
+        timer?.invalidate()
+        timer = nil
+        timerState.reset()
+    }
+
+    /// Stop the timer. Existing semantics preserved: zeroes elapsed and goes idle.
     func stopTimer() {
         timer?.invalidate()
         timer = nil
-        elapsedSeconds = 0
+        timerState.stop()
+    }
+
+    private func scheduleTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.timerState.tick()
+            self.wallClock = TimeFormatting.wallClock()
+        }
     }
 
     // MARK: - Private
