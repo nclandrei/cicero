@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import Swifter
 import Shared
 
 final class LocalServer {
+    private static let logger = Logger(subsystem: "com.andreinicolas.Cicero", category: "LocalServer")
+
     private let server = HttpServer()
     private let presentation: Presentation
     private let screenshotService: ScreenshotService
@@ -24,9 +27,9 @@ final class LocalServer {
             // on the same network segment.
             server.listenAddressIPv4 = CiceroConstants.httpLoopbackAddress
             try server.start(CiceroConstants.httpPort, forceIPv4: true)
-            print("[Cicero] HTTP server listening on \(CiceroConstants.httpHost):\(CiceroConstants.httpPort)")
+            Self.logger.info("HTTP server listening on \(CiceroConstants.httpHost, privacy: .public):\(CiceroConstants.httpPort, privacy: .public)")
         } catch {
-            print("[Cicero] Failed to start HTTP server: \(error)")
+            Self.logger.error("Failed to start HTTP server: \(error.localizedDescription, privacy: .public)")
         }
     }
 

@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import UniformTypeIdentifiers
 import Shared
 
 final class ImageStore {
+    private static let logger = Logger(subsystem: "com.andreinicolas.Cicero", category: "ImageStore")
+
     private let assetsDirectory: URL
 
     init(baseURL: URL) {
@@ -22,7 +25,7 @@ final class ImageStore {
             try data.write(to: fileURL)
             return "assets/\(filename)"
         } catch {
-            print("[ImageStore] Failed to write image: \(error)")
+            Self.logger.error("Failed to write image: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
