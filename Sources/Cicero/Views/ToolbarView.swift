@@ -76,50 +76,72 @@ struct ToolbarView: ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             Button(action: { presentation.previous() }) {
                 Image(systemName: "chevron.left")
+                    .accessibilityHidden(true)
             }
             .disabled(presentation.currentIndex <= 0)
             .help("Previous slide")
+            .accessibilityLabel("Previous slide")
+            .accessibilityHint("Navigates to the previous slide")
 
             Text("\(presentation.currentIndex + 1) / \(presentation.slides.count)")
                 .font(.system(.body, design: .monospaced))
                 .frame(minWidth: 50)
+                .accessibilityLabel("Slide \(presentation.currentIndex + 1) of \(presentation.slides.count)")
 
             Button(action: { presentation.next() }) {
                 Image(systemName: "chevron.right")
+                    .accessibilityHidden(true)
             }
             .disabled(presentation.currentIndex >= presentation.slides.count - 1)
             .help("Next slide")
+            .accessibilityLabel("Next slide")
+            .accessibilityHint("Navigates to the next slide")
         }
 
         ToolbarItemGroup {
             Button(action: { _ = presentation.undoEdit() }) {
                 Image(systemName: "arrow.uturn.backward")
+                    .accessibilityHidden(true)
             }
             .disabled(!presentation.editHistory.canUndo)
             .help("Undo (Cmd+Z)")
+            .accessibilityLabel("Undo")
+            .accessibilityHint("Reverts the last edit")
 
             Button(action: { _ = presentation.redoEdit() }) {
                 Image(systemName: "arrow.uturn.forward")
+                    .accessibilityHidden(true)
             }
             .disabled(!presentation.editHistory.canRedo)
             .help("Redo (Cmd+Shift+Z)")
+            .accessibilityLabel("Redo")
+            .accessibilityHint("Reapplies the last undone edit")
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
             Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showSidebar.toggle() } }) {
                 Image(systemName: "sidebar.left")
+                    .accessibilityHidden(true)
             }
             .help("Toggle sidebar")
+            .accessibilityLabel("Toggle sidebar")
+            .accessibilityHint("Shows or hides the slide thumbnail sidebar")
 
             Button(action: { showNotes.toggle() }) {
                 Image(systemName: "note.text")
+                    .accessibilityHidden(true)
             }
             .help("Toggle speaker notes")
+            .accessibilityLabel("Toggle speaker notes")
+            .accessibilityHint("Shows or hides the speaker notes editor")
 
             Button(action: { showOverview.toggle() }) {
                 Image(systemName: "square.grid.2x2")
+                    .accessibilityHidden(true)
             }
             .help("Slide overview")
+            .accessibilityLabel("Slide overview")
+            .accessibilityHint("Opens a grid view of all slides")
 
             // MARK: Appearance Menu
             Menu {
@@ -198,8 +220,11 @@ struct ToolbarView: ToolbarContent {
                 }
             } label: {
                 Image(systemName: "paintbrush")
+                    .accessibilityHidden(true)
             }
             .help("Appearance")
+            .accessibilityLabel("Appearance")
+            .accessibilityHint("Opens menu to choose theme, mode, and font")
             .background {
                 if showFontPanel {
                     FontPanelBridge { familyName in
@@ -247,6 +272,8 @@ struct ToolbarView: ToolbarContent {
             }
             .disabled(isPublishing || isAuthenticating)
             .help("Share Link")
+            .accessibilityLabel("Share link")
+            .accessibilityHint("Publishes the presentation and copies a shareable link")
             .popover(isPresented: $showAuthPopover, arrowEdge: .bottom) {
                 VStack(spacing: 12) {
                     if let code = authUserCode {
@@ -263,6 +290,7 @@ struct ToolbarView: ToolbarContent {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.red)
                             .font(.title2)
+                            .accessibilityHidden(true)
                         Text(error)
                             .font(.subheadline)
                             .foregroundColor(.red)
@@ -273,6 +301,7 @@ struct ToolbarView: ToolbarContent {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        .accessibilityHint("Retries the GitHub sign-in flow")
                     } else {
                         ProgressView()
                             .controlSize(.small)
@@ -289,8 +318,11 @@ struct ToolbarView: ToolbarContent {
                 openWindow(id: "presenter")
             }) {
                 Image(systemName: "play.fill")
+                    .accessibilityHidden(true)
             }
             .help("Start presentation")
+            .accessibilityLabel("Start presentation")
+            .accessibilityHint("Opens the presenter window in full screen")
         }
     }
 
