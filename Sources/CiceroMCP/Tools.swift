@@ -761,10 +761,18 @@ enum CiceroToolHandler {
 
         case "save_file":
             let resp: SaveResponse = try await client.postEmpty("/save")
-            if resp.success {
-                return textResult("Saved to \(resp.filePath ?? "(in memory)")")
-            } else {
-                return textResult("No file path set. Open or create a file first.")
+            switch resp.outcome {
+            case .saved(let path):
+                return textResult("Saved to \(path)")
+            case .noPath:
+                return .init(
+                    content: [.text(
+                        text: "No file path set; call save_as first.",
+                        annotations: nil,
+                        _meta: nil
+                    )],
+                    isError: true
+                )
             }
 
         case "get_markdown":

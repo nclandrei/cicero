@@ -176,6 +176,33 @@ struct APIModelTests {
         #expect(decoded.filePath == nil)
     }
 
+    @Test("SaveResponse outcome is .saved when success with path")
+    func saveOutcomeSaved() {
+        let resp = SaveResponse(success: true, filePath: "/tmp/deck.md")
+        #expect(resp.outcome == .saved(path: "/tmp/deck.md"))
+    }
+
+    @Test("SaveResponse outcome is .noPath when success but path is nil")
+    func saveOutcomeSuccessButNilPath() {
+        // Today's behavior: presentation.save() with no filePath returns
+        // success=true / filePath=nil. The MCP layer must surface this as
+        // an error so agents don't think the deck got persisted.
+        let resp = SaveResponse(success: true, filePath: nil)
+        #expect(resp.outcome == .noPath)
+    }
+
+    @Test("SaveResponse outcome is .noPath when success but path is empty")
+    func saveOutcomeSuccessButEmptyPath() {
+        let resp = SaveResponse(success: true, filePath: "")
+        #expect(resp.outcome == .noPath)
+    }
+
+    @Test("SaveResponse outcome is .noPath when success false")
+    func saveOutcomeFailure() {
+        let resp = SaveResponse(success: false, filePath: nil)
+        #expect(resp.outcome == .noPath)
+    }
+
     // MARK: - Markdown Model
 
     @Test("GetMarkdownResponse encodes/decodes with all fields")
