@@ -28,6 +28,9 @@ public struct Slide: Codable, Identifiable, Sendable {
     public var videoURL: String?
     public var embedURL: String?
     public var notes: String?
+    /// Persisted per-slide drawings, parsed from a `drawings: <base64-json>`
+    /// frontmatter line. Nil when there are no drawings on the slide.
+    public var drawings: [SlideDrawingStroke]?
 
     public init(id: Int, content: String) {
         let parsed = SlideParser.parseSlideMetadata(content)
@@ -39,9 +42,10 @@ public struct Slide: Codable, Identifiable, Sendable {
         self.videoURL = parsed.videoURL
         self.embedURL = parsed.embedURL
         self.notes = parsed.notes
+        self.drawings = parsed.drawings
     }
 
-    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?, videoURL: String? = nil, embedURL: String? = nil, notes: String? = nil) {
+    public init(id: Int, content: String, body: String, layout: SlideLayout, imageURL: String?, videoURL: String? = nil, embedURL: String? = nil, notes: String? = nil, drawings: [SlideDrawingStroke]? = nil) {
         self.id = id
         self.content = content
         self.body = body
@@ -50,6 +54,23 @@ public struct Slide: Codable, Identifiable, Sendable {
         self.videoURL = videoURL
         self.embedURL = embedURL
         self.notes = notes
+        self.drawings = drawings
+    }
+
+    /// Update the drawings on this slide, rewriting `content` to keep the
+    /// `drawings: <base64-json>` frontmatter line in sync. Passing nil or an
+    /// empty array removes the line entirely.
+    public mutating func setDrawings(_ strokes: [SlideDrawingStroke]?) {
+        let newContent = SlideParser.replaceDrawings(in: content, with: strokes)
+        let parsed = SlideParser.parseSlideMetadata(newContent)
+        self.content = newContent
+        self.body = parsed.body
+        self.layout = parsed.layout
+        self.imageURL = parsed.imageURL
+        self.videoURL = parsed.videoURL
+        self.embedURL = parsed.embedURL
+        self.notes = parsed.notes
+        self.drawings = parsed.drawings
     }
 
     public var title: String? {
@@ -135,6 +156,7 @@ public enum SlideParser {
         public let videoURL: String?
         public let embedURL: String?
         public let notes: String?
+        public let drawings: [SlideDrawingStroke]?
     }
 
     /// Extract speaker notes from a `<!-- notes ... -->` HTML comment block at the end of content.
@@ -153,7 +175,7 @@ public enum SlideParser {
         return (body, notesText.isEmpty ? nil : notesText)
     }
 
-    /// Parse per-slide frontmatter (layout:, image:, video:, embed:) from the top of slide content.
+    /// Parse per-slide frontmatter (layout:, image:, video:, embed:, drawings:) from the top of slide content.
     /// Lines like `layout: title` and `image: url` at the very top are consumed.
     public static func parseSlideMetadata(_ content: String) -> SlideMetadata {
         // First extract notes from content
@@ -163,6 +185,7 @@ public enum SlideParser {
         var imageURL: String? = nil
         var videoURL: String? = nil
         var embedURL: String? = nil
+        var drawings: [SlideDrawingStroke]? = nil
         var bodyLines: [String] = []
         var inFrontmatter = true
 
@@ -190,6 +213,11 @@ public enum SlideParser {
                     case "embed":
                         embedURL = value
                         continue
+                    case "drawings":
+                        // Decode is best-effort. Malformed values yield nil drawings
+                        // but the line is still consumed so it does not pollute the body.
+                        drawings = SlideDrawingCodec.decode(value)
+                        continue
                     default:
                         // Not a recognized frontmatter key — treat as body
                         inFrontmatter = false
@@ -202,7 +230,56 @@ public enum SlideParser {
         }
 
         let body = bodyLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        return SlideMetadata(body: body, layout: layout, imageURL: imageURL, videoURL: videoURL, embedURL: embedURL, notes: notes)
+        return SlideMetadata(body: body, layout: layout, imageURL: imageURL, videoURL: videoURL, embedURL: embedURL, notes: notes, drawings: drawings)
+    }
+
+    /// Replace the `drawings: <base64>` frontmatter line in slide content. If
+    /// `strokes` is nil or empty, removes the line entirely. Otherwise inserts
+    /// or updates it. Preserves position of other frontmatter lines.
+    public static func replaceDrawings(in content: String, with strokes: [SlideDrawingStroke]?) -> String {
+        // Extract notes block first so we don't disturb it.
+        let (bodyContent, notes) = extractNotes(content)
+
+        var lines = bodyContent.components(separatedBy: "\n")
+        var insertIndex = 0
+        var foundDrawingsLine = false
+        var inFrontmatter = true
+
+        // Walk leading frontmatter lines. Stop at first non-frontmatter line.
+        var i = 0
+        while i < lines.count && inFrontmatter {
+            let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { i += 1; continue }
+            let pair = trimmed.split(separator: ":", maxSplits: 1)
+            if pair.count == 2 {
+                let key = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
+                if ["layout", "image", "video", "embed", "drawings"].contains(key) {
+                    if key == "drawings" {
+                        // Remove the existing drawings line.
+                        lines.remove(at: i)
+                        foundDrawingsLine = true
+                        continue
+                    }
+                    i += 1
+                    insertIndex = i
+                    continue
+                }
+            }
+            inFrontmatter = false
+        }
+        if !foundDrawingsLine {
+            // insertIndex was advanced past existing recognized frontmatter lines.
+        }
+
+        if let encoded = SlideDrawingCodec.encode(strokes) {
+            lines.insert("drawings: \(encoded)", at: min(insertIndex, lines.count))
+        }
+
+        var result = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if let notes {
+            result += "\n\n<!-- notes\n\(notes)\n-->"
+        }
+        return result
     }
 
     public static func parse(_ markdown: String) -> (metadata: PresentationMetadata, slides: [Slide]) {

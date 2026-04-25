@@ -279,6 +279,29 @@ final class Presentation {
 
     func clearDrawings() {
         drawingStrokes = []
+        // Also clear persisted per-slide drawings on the current slide.
+        if currentIndex >= 0 && currentIndex < slides.count {
+            setSlideDrawings(at: currentIndex, strokes: nil)
+        }
+    }
+
+    // MARK: - Per-slide drawing persistence
+
+    /// Read persisted drawings for a slide. Nil if the slide has none or
+    /// if the index is out of bounds.
+    func slideDrawings(at index: Int) -> [SlideDrawingStroke]? {
+        guard index >= 0 && index < slides.count else { return nil }
+        return slides[index].drawings
+    }
+
+    /// Persist drawings for a slide into its markdown content via the
+    /// `drawings: <base64-json>` frontmatter line. Passing nil or an empty
+    /// array removes the line. Triggers a markdown rebuild so the on-disk
+    /// markdown stays in sync.
+    func setSlideDrawings(at index: Int, strokes: [SlideDrawingStroke]?) {
+        guard index >= 0 && index < slides.count else { return }
+        slides[index].setDrawings(strokes)
+        rebuildMarkdown()
     }
 
     // MARK: - Timer
