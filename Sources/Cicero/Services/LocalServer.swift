@@ -19,8 +19,12 @@ final class LocalServer {
 
     func start() {
         do {
+            // Bind to loopback only — never accept connections from the LAN.
+            // Without this, Swifter listens on 0.0.0.0 and exposes the API to anyone
+            // on the same network segment.
+            server.listenAddressIPv4 = CiceroConstants.httpLoopbackAddress
             try server.start(CiceroConstants.httpPort, forceIPv4: true)
-            print("[Cicero] HTTP server listening on port \(CiceroConstants.httpPort)")
+            print("[Cicero] HTTP server listening on \(CiceroConstants.httpHost):\(CiceroConstants.httpPort)")
         } catch {
             print("[Cicero] Failed to start HTTP server: \(error)")
         }
