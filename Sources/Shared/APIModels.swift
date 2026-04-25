@@ -170,6 +170,32 @@ public struct AddImageResponse: Codable, Sendable {
     }
 }
 
+public struct ImageListItem: Codable, Sendable {
+    public let id: String
+    public let filename: String
+    public let sizeBytes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case filename
+        case sizeBytes = "size_bytes"
+    }
+
+    public init(id: String, filename: String, sizeBytes: Int) {
+        self.id = id
+        self.filename = filename
+        self.sizeBytes = sizeBytes
+    }
+}
+
+public struct ImageListResponse: Codable, Sendable {
+    public let images: [ImageListItem]
+
+    public init(images: [ImageListItem]) {
+        self.images = images
+    }
+}
+
 public struct SetImageTransformRequest: Codable, Sendable {
     public let path: String
     public let x: Double?
@@ -326,6 +352,34 @@ public struct SaveAsRequest: Codable, Sendable {
     }
 }
 
+public struct BulkSlideUpdate: Codable, Sendable {
+    public let index: Int
+    public let content: String
+
+    public init(index: Int, content: String) {
+        self.index = index
+        self.content = content
+    }
+}
+
+public struct BulkSetSlidesRequest: Codable, Sendable {
+    public let updates: [BulkSlideUpdate]
+
+    public init(updates: [BulkSlideUpdate]) {
+        self.updates = updates
+    }
+}
+
+public struct BulkSetSlidesResponse: Codable, Sendable {
+    public let updatedCount: Int
+    public let totalSlides: Int
+
+    public init(updatedCount: Int, totalSlides: Int) {
+        self.updatedCount = updatedCount
+        self.totalSlides = totalSlides
+    }
+}
+
 public struct AddSlideRequest: Codable, Sendable {
     public let content: String
     public let afterIndex: Int?
@@ -349,6 +403,16 @@ public struct CreatePresentationRequest: Codable, Sendable {
 
     public init(markdown: String) {
         self.markdown = markdown
+    }
+}
+
+public struct NewPresentationRequest: Codable, Sendable {
+    public let title: String?
+    public let author: String?
+
+    public init(title: String? = nil, author: String? = nil) {
+        self.title = title
+        self.author = author
     }
 }
 
@@ -387,6 +451,44 @@ public struct SetNotesRequest: Codable, Sendable {
 
     public init(notes: String? = nil) {
         self.notes = notes
+    }
+}
+
+// MARK: - Find & Replace Models
+
+public struct FindReplaceRequest: Codable, Sendable {
+    public let query: String
+    public let replacement: String
+    public let slideIndices: [Int]?
+    public let caseSensitive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case query
+        case replacement
+        case slideIndices = "slide_indices"
+        case caseSensitive = "case_sensitive"
+    }
+
+    public init(query: String, replacement: String, slideIndices: [Int]? = nil, caseSensitive: Bool? = nil) {
+        self.query = query
+        self.replacement = replacement
+        self.slideIndices = slideIndices
+        self.caseSensitive = caseSensitive
+    }
+}
+
+public struct FindReplaceResponse: Codable, Sendable {
+    public let replacements: Int
+    public let affectedSlides: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case replacements
+        case affectedSlides = "affected_slides"
+    }
+
+    public init(replacements: Int, affectedSlides: [Int]) {
+        self.replacements = replacements
+        self.affectedSlides = affectedSlides
     }
 }
 

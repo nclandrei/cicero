@@ -101,6 +101,23 @@ final class LocalServer {
             }
         }
 
+        server.PUT["/slides/bulk"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: BulkSetSlidesRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"updates\": [{\"index\": Int, \"content\": String}]}")
+            }
+            return self.onMain {
+                if let err = RequestValidator.validateBulk(body, slideCount: self.presentation.slides.count) {
+                    return self.jsonError(err)
+                }
+                let applied = self.presentation.bulkUpdateSlides(body.updates)
+                return self.jsonResponse(BulkSetSlidesResponse(
+                    updatedCount: applied,
+                    totalSlides: self.presentation.slides.count
+                ))
+            }
+        }
+
         server.PUT["/slides/:index"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let index = self.pathInt(request, ":index"),
@@ -297,6 +314,35 @@ final class LocalServer {
                 }
                 self.presentation.duplicateSlide(at: index)
                 return self.jsonResponse(SuccessResponse(success: true, message: "Slide \(index + 1) duplicated"))
+            }
+        }
+
+        server.POST["/find-replace"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: FindReplaceRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"query\": String, \"replacement\": String, \"slide_indices\"?: [Int], \"case_sensitive\"?: Bool}")
+            }
+            return self.onMain {
+                let count = self.presentation.slides.count
+                if let provided = body.slideIndices,
+                   let bad = RequestValidator.firstOutOfRange(provided, count: count) {
+                    return self.jsonError("Slide index out of range: \(bad)")
+                }
+                let pairs = self.presentation.slides.map { (index: $0.id, content: $0.content) }
+                let result = FindReplace.apply(
+                    to: pairs,
+                    query: body.query,
+                    replacement: body.replacement,
+                    slideIndices: body.slideIndices,
+                    caseSensitive: body.caseSensitive ?? false
+                )
+                if !result.updates.isEmpty {
+                    self.presentation.bulkUpdateSlides(result.updates)
+                }
+                return self.jsonResponse(FindReplaceResponse(
+                    replacements: result.totalReplacements,
+                    affectedSlides: result.affectedSlides
+                ))
             }
         }
 
@@ -580,6 +626,52 @@ final class LocalServer {
             }
         }
 
+        server.POST["/close"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            self.onMain {
+                self.presentation.filePath = nil
+                self.presentation.loadMarkdown(SlideParser.blankPresentation())
+            }
+            let resp = self.onMain {
+                StatusResponse(
+                    currentSlide: self.presentation.currentIndex,
+                    totalSlides: self.presentation.slides.count,
+                    presenting: self.presentation.isPresenting,
+                    filePath: self.presentation.filePath?.path,
+                    title: self.presentation.metadata.title,
+                    theme: self.presentation.metadata.theme,
+                    author: self.presentation.metadata.author,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
+        server.POST["/new"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            // Body is optional; treat empty/invalid body as defaults.
+            let body: NewPresentationRequest = self.decodeBody(request) ?? NewPresentationRequest()
+            self.onMain {
+                self.presentation.filePath = nil
+                self.presentation.loadMarkdown(SlideParser.blankPresentation(title: body.title, author: body.author))
+            }
+            let resp = self.onMain {
+                StatusResponse(
+                    currentSlide: self.presentation.currentIndex,
+                    totalSlides: self.presentation.slides.count,
+                    presenting: self.presentation.isPresenting,
+                    filePath: self.presentation.filePath?.path,
+                    title: self.presentation.metadata.title,
+                    theme: self.presentation.metadata.theme,
+                    author: self.presentation.metadata.author,
+                    font: self.presentation.metadata.font,
+                    transition: (self.presentation.metadata.transition ?? .none).rawValue
+                )
+            }
+            return self.jsonResponse(resp)
+        }
+
         server.POST["/create"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: CreatePresentationRequest = self.decodeBody(request) else {
@@ -618,6 +710,32 @@ final class LocalServer {
             }
             guard let result else { return self.jsonError("Failed to export HTML") }
             return self.jsonResponse(result)
+        }
+
+        server.GET["/images"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let items = self.onMain { () -> [ImageListItem] in
+                guard let store = self.presentation.imageStore else { return [] }
+                return store.listImages()
+            }
+            return self.jsonResponse(ImageListResponse(images: items))
+        }
+
+        server.DELETE["/images/:id"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let id = request.params[":id"], !id.isEmpty else {
+                return self.jsonError("Missing image id")
+            }
+            let decoded = id.removingPercentEncoding ?? id
+            return self.onMain {
+                guard let store = self.presentation.imageStore else {
+                    return self.jsonError("No image store available. Open or save a presentation first.", status: 404)
+                }
+                guard store.removeImage(id: decoded) else {
+                    return self.jsonError("Image not found: \(decoded)", status: 404)
+                }
+                return self.jsonResponse(SuccessResponse(success: true, message: "Image \(decoded) removed"))
+            }
         }
 
         server.POST["/images"] = { [weak self] request in

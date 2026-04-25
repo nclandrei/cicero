@@ -132,6 +132,29 @@ enum CiceroTools {
             ]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
+        Tool(
+            name: "bulk_set_slides",
+            description: "Apply multiple slide content updates in a single transactional call. If any provided index is out of range, no updates are applied.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "updates": .object([
+                        "type": "array",
+                        "description": "Array of {index, content} objects. Index is 0-based.",
+                        "items": .object([
+                            "type": "object",
+                            "properties": .object([
+                                "index": .object(["type": "integer", "description": "Slide index (0-based)"]),
+                                "content": .object(["type": "string", "description": "New markdown content for the slide"]),
+                            ]),
+                            "required": .array([.string("index"), .string("content")]),
+                        ]),
+                    ]),
+                ]),
+                "required": .array([.string("updates")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+        ),
 
         Tool(
             name: "duplicate_slide",
@@ -236,6 +259,24 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
+            name: "close_file",
+            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
+            name: "new_presentation",
+            description: "Create a new blank presentation with optional title and author. Replaces the currently open deck.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "title": .object(["type": "string", "description": "Optional presentation title"]),
+                    "author": .object(["type": "string", "description": "Optional author name"]),
+                ]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
+        ),
+        Tool(
             name: "create_presentation",
             description: "Create a new presentation from markdown content. Use --- to separate slides. Optionally include YAML frontmatter for title/theme/author.",
             inputSchema: .object([
@@ -296,6 +337,24 @@ enum CiceroTools {
                 "required": .array([.string("base64_data")]),
             ]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "list_images",
+            description: "List all images in the presentation's assets directory.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "remove_image",
+            description: "Delete an image from the presentation's assets directory by id (filename).",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "id": .object(["type": "string", "description": "Image id (filename) as returned by list_images"]),
+                ]),
+                "required": .array([.string("id")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
             name: "set_image_transform",
@@ -529,6 +588,28 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
         ),
 
+        // MARK: - Find & Replace
+
+        Tool(
+            name: "find_and_replace",
+            description: "Find and replace text across slides. By default operates on all slides case-insensitively. Optionally restrict to specific slide indices.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "query": .object(["type": "string", "description": "Text to search for"]),
+                    "replacement": .object(["type": "string", "description": "Replacement text"]),
+                    "slide_indices": .object([
+                        "type": "array",
+                        "description": "Optional 0-based slide indices to limit replacement to. Omit for all slides.",
+                        "items": .object(["type": "integer"]),
+                    ]),
+                    "case_sensitive": .object(["type": "boolean", "description": "Match case (default false)"]),
+                ]),
+                "required": .array([.string("query"), .string("replacement")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+        ),
+
         // MARK: - Speaker Notes
 
         Tool(
@@ -631,6 +712,19 @@ enum CiceroToolHandler {
                 body: ReorderRequest(from: from, to: to)
             )
             return textResult("Moved slide from position \(from + 1) to \(to + 1).")
+
+        case "bulk_set_slides":
+            // Round-trip args[updates] through JSON to decode into our DTOs.
+            guard let updatesValue = arguments?["updates"] else {
+                return textResult("Missing 'updates' argument.")
+            }
+            let updatesData = try JSONEncoder().encode(updatesValue)
+            let updates = try JSONDecoder().decode([BulkSlideUpdate].self, from: updatesData)
+            let resp: BulkSetSlidesResponse = try await client.put(
+                "/slides/bulk",
+                body: BulkSetSlidesRequest(updates: updates)
+            )
+            return textResult("Updated \(resp.updatedCount) of \(resp.totalSlides) slides.")
 
         case "duplicate_slide":
             let index = arguments?["index"]?.intValue ?? 0
@@ -781,6 +875,23 @@ enum CiceroToolHandler {
             )
             return textResult("Opened \(path)")
 
+        case "close_file":
+            let resp: StatusResponse = try await client.postEmpty("/close")
+            return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+
+        case "new_presentation":
+            let title = arguments?["title"]?.stringValue
+            let author = arguments?["author"]?.stringValue
+            let resp: StatusResponse = try await client.post(
+                "/new",
+                body: NewPresentationRequest(title: title, author: author)
+            )
+            var msg = "New blank presentation created"
+            if let t = resp.title { msg += " (title: \(t))" }
+            if let a = resp.author { msg += " (author: \(a))" }
+            msg += "."
+            return textResult(msg)
+
         case "create_presentation":
             let markdown = arguments?["markdown"]?.stringValue ?? ""
             let _: SuccessResponse = try await client.post(
@@ -835,6 +946,23 @@ enum CiceroToolHandler {
                 body: AddImageRequest(base64Data: base64Data, name: name)
             )
             return textResult("Image stored at \(resp.relativePath). Insert this markdown into a slide:\n\(resp.markdownSnippet)")
+
+        case "list_images":
+            let resp: ImageListResponse = try await client.get("/images")
+            if resp.images.isEmpty {
+                return textResult("No images in assets directory.")
+            }
+            var text = "Images (\(resp.images.count)):\n"
+            for img in resp.images {
+                text += "  \(img.id) — \(img.sizeBytes) bytes\n"
+            }
+            return textResult(text)
+
+        case "remove_image":
+            let id = arguments?["id"]?.stringValue ?? ""
+            let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+            let _: SuccessResponse = try await client.delete("/images/\(encoded)")
+            return textResult("Image \(id) removed.")
 
         case "set_image_transform":
             let slideIndex = arguments?["slide_index"]?.intValue ?? 0
@@ -1046,6 +1174,29 @@ enum CiceroToolHandler {
                 text += "  …\(match.excerpt)…\n\n"
             }
             return textResult(text)
+
+        case "find_and_replace":
+            let query = arguments?["query"]?.stringValue ?? ""
+            let replacement = arguments?["replacement"]?.stringValue ?? ""
+            let caseSensitive = arguments?["case_sensitive"]?.boolValue
+            var slideIndices: [Int]? = nil
+            if let arr = arguments?["slide_indices"], case .array(let values) = arr {
+                slideIndices = values.compactMap { $0.intValue }
+            }
+            let resp: FindReplaceResponse = try await client.post(
+                "/find-replace",
+                body: FindReplaceRequest(
+                    query: query,
+                    replacement: replacement,
+                    slideIndices: slideIndices,
+                    caseSensitive: caseSensitive
+                )
+            )
+            if resp.replacements == 0 {
+                return textResult("No matches found for \"\(query)\".")
+            }
+            let slidesText = resp.affectedSlides.map { String($0 + 1) }.joined(separator: ", ")
+            return textResult("Replaced \(resp.replacements) occurrence(s) across slide(s): \(slidesText).")
 
         case "get_notes":
             let index = arguments?["index"]?.intValue ?? 0
