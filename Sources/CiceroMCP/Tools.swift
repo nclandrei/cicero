@@ -213,9 +213,14 @@ enum CiceroTools {
 
         Tool(
             name: "export_pdf",
-            description: "Export the current presentation as a multi-page PDF",
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
-            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+            description: "Export the current presentation as a multi-page PDF. If output_path is provided, the PDF is written to that file and the absolute path is returned. Otherwise the base64-encoded PDF data is returned inline.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "output_path": .object(["type": "string", "description": "Optional absolute file path to write the PDF to. Parent directories are created as needed. If omitted, returns the base64 PDF data inline."]),
+                ]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
 
         // MARK: - Images
@@ -631,7 +636,26 @@ enum CiceroToolHandler {
 
         case "export_pdf":
             let resp: ExportPDFResponse = try await client.get("/export/pdf")
-            return textResult("PDF exported successfully (\(resp.pageCount) pages). Base64 PDF data length: \(resp.base64PDF.count) characters.")
+            if let outputPath = arguments?["output_path"]?.stringValue, !outputPath.isEmpty {
+                guard let pdfData = Data(base64Encoded: resp.base64PDF) else {
+                    return .init(
+                        content: [.text(
+                            text: "Failed to decode base64 PDF data from /export/pdf.",
+                            annotations: nil,
+                            _meta: nil
+                        )],
+                        isError: true
+                    )
+                }
+                let url = URL(fileURLWithPath: outputPath)
+                let parent = url.deletingLastPathComponent()
+                try FileManager.default.createDirectory(
+                    at: parent, withIntermediateDirectories: true
+                )
+                try pdfData.write(to: url)
+                return textResult("PDF exported to \(outputPath) (\(resp.pageCount) pages).")
+            }
+            return textResult("PDF exported (\(resp.pageCount) pages). Base64 PDF data:\n\n\(resp.base64PDF)")
 
         case "add_image":
             let base64Data = arguments?["base64_data"]?.stringValue ?? ""
