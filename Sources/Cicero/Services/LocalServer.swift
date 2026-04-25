@@ -755,6 +755,33 @@ final class LocalServer {
 
         // MARK: - Save
 
+        server.POST["/save_as"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let body: SaveAsRequest = self.decodeBody(request) else {
+                return self.jsonError("Invalid request body. Expected {\"path\": \"/abs/path.md\"}")
+            }
+            switch SaveAsPathValidator.validate(body.path) {
+            case .valid:
+                break
+            case .empty:
+                return self.jsonError("Path is empty")
+            case .notAbsolute:
+                return self.jsonError("Path must be absolute (start with '/')")
+            case .parentNotCreatable(let reason):
+                return self.jsonError(reason)
+            }
+            do {
+                let savedPath = try self.onMain { () -> String in
+                    let url = URL(fileURLWithPath: body.path)
+                    try self.presentation.saveAs(url: url)
+                    return url.path
+                }
+                return self.jsonResponse(SaveResponse(success: true, filePath: savedPath))
+            } catch {
+                return self.jsonError("Failed to save: \(error.localizedDescription)")
+            }
+        }
+
         server.POST["/save"] = { [weak self] _ in
             guard let self else { return .internalServerError }
             do {

@@ -230,6 +230,19 @@ final class Presentation {
         isDirty = false
     }
 
+    /// Save the current markdown to a new path, creating intermediate directories
+    /// as needed. Updates `filePath` so subsequent `save()` calls write there.
+    func saveAs(url: URL) throws {
+        let parent = url.deletingLastPathComponent()
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: parent.path) {
+            try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        }
+        try markdown.write(to: url, atomically: true, encoding: .utf8)
+        filePath = url
+        isDirty = false
+    }
+
     func loadFile(_ url: URL) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         filePath = url

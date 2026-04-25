@@ -458,6 +458,18 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
+            name: "save_as",
+            description: "Save the current presentation to a new absolute path. Creates parent directories as needed and updates the presentation's file path.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "path": .object(["type": "string", "description": "Absolute path to save to (e.g. /Users/me/decks/talk.md)"]),
+                ]),
+                "required": .array([.string("path")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
+        ),
+        Tool(
             name: "get_markdown",
             description: "Get the full raw markdown of the presentation including YAML frontmatter, all slides, and separators",
             inputSchema: .object(["type": "object", "properties": .object([:])]),
@@ -915,6 +927,17 @@ enum CiceroToolHandler {
             if let font = resp.font { text += "  font: \(font)\n" }
             if let transition = resp.transition { text += "  transition: \(transition)\n" }
             return textResult(text)
+
+        case "save_as":
+            let path = arguments?["path"]?.stringValue ?? ""
+            let resp: SaveResponse = try await client.post(
+                "/save_as", body: SaveAsRequest(path: path)
+            )
+            if resp.success, let fp = resp.filePath {
+                return textResult("Saved to \(fp)")
+            } else {
+                return textResult("Save failed.")
+            }
 
         case "save_file":
             let resp: SaveResponse = try await client.postEmpty("/save")
