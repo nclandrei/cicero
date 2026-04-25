@@ -72,6 +72,10 @@ struct SlideThumbnailSidebar: View {
         .onTapGesture {
             presentation.navigate(to: index)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(SlideAccessibility.thumbnailLabel(index: index, total: presentation.slides.count, title: slide.title))
+        .accessibilityHint("Activates this slide")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .contextMenu {
             Button("Add Slide After") {
                 presentation.addSlide(content: "\n", after: index)
