@@ -277,6 +277,7 @@ jobs:
             echo "  depends_on macos: \">= :sonoma\""
             echo ""
             echo "  app \"Cicero.app\""
+            echo "  binary \"#{appdir}/Cicero.app/Contents/MacOS/CiceroMCP\", target: \"cicero-mcp\""
             echo ""
             echo "  zap trash: ["
             echo "    \"~/Library/Preferences/com.andreinicolas.Cicero.plist\","
