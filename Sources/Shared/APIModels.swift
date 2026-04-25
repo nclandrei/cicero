@@ -158,6 +158,32 @@ public struct AddImageResponse: Codable, Sendable {
     }
 }
 
+public struct ImageListItem: Codable, Sendable {
+    public let id: String
+    public let filename: String
+    public let sizeBytes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case filename
+        case sizeBytes = "size_bytes"
+    }
+
+    public init(id: String, filename: String, sizeBytes: Int) {
+        self.id = id
+        self.filename = filename
+        self.sizeBytes = sizeBytes
+    }
+}
+
+public struct ImageListResponse: Codable, Sendable {
+    public let images: [ImageListItem]
+
+    public init(images: [ImageListItem]) {
+        self.images = images
+    }
+}
+
 public struct SetImageTransformRequest: Codable, Sendable {
     public let path: String
     public let x: Double?

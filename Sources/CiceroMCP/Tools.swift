@@ -258,6 +258,24 @@ enum CiceroTools {
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
         ),
         Tool(
+            name: "list_images",
+            description: "List all images in the presentation's assets directory.",
+            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: false)
+        ),
+        Tool(
+            name: "remove_image",
+            description: "Delete an image from the presentation's assets directory by id (filename).",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "id": .object(["type": "string", "description": "Image id (filename) as returned by list_images"]),
+                ]),
+                "required": .array([.string("id")]),
+            ]),
+            annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
+        ),
+        Tool(
             name: "set_image_transform",
             description: "Move or resize a positioned image on a slide. Coordinates (x, y, width) are in the 960×540 reference space. Each parameter is optional — omitted values are left unchanged.",
             inputSchema: .object([
@@ -700,6 +718,23 @@ enum CiceroToolHandler {
                 body: AddImageRequest(base64Data: base64Data, name: name)
             )
             return textResult("Image stored at \(resp.relativePath). Insert this markdown into a slide:\n\(resp.markdownSnippet)")
+
+        case "list_images":
+            let resp: ImageListResponse = try await client.get("/images")
+            if resp.images.isEmpty {
+                return textResult("No images in assets directory.")
+            }
+            var text = "Images (\(resp.images.count)):\n"
+            for img in resp.images {
+                text += "  \(img.id) — \(img.sizeBytes) bytes\n"
+            }
+            return textResult(text)
+
+        case "remove_image":
+            let id = arguments?["id"]?.stringValue ?? ""
+            let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+            let _: SuccessResponse = try await client.delete("/images/\(encoded)")
+            return textResult("Image \(id) removed.")
 
         case "set_image_transform":
             let slideIndex = arguments?["slide_index"]?.intValue ?? 0

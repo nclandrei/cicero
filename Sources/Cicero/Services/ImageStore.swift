@@ -1,5 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
+import Shared
 
 final class ImageStore {
     private let assetsDirectory: URL
@@ -30,6 +31,43 @@ final class ImageStore {
     func resolveImagePath(_ relativePath: String) -> URL? {
         let url = assetsDirectory.deletingLastPathComponent().appendingPathComponent(relativePath)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Lists every image file in the assets directory. The image's `id` is its
+    /// filename (which is unique within the assets dir). Returns an empty array
+    /// if the directory does not exist yet.
+    func listImages() -> [ImageListItem] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: assetsDirectory.path) else { return [] }
+        let urls = (try? fm.contentsOfDirectory(
+            at: assetsDirectory,
+            includingPropertiesForKeys: [.fileSizeKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "tiff", "tif", "webp", "bmp"]
+        return urls.compactMap { url in
+            let ext = url.pathExtension.lowercased()
+            guard imageExts.contains(ext) else { return nil }
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            let filename = url.lastPathComponent
+            return ImageListItem(id: filename, filename: filename, sizeBytes: size)
+        }.sorted { $0.filename < $1.filename }
+    }
+
+    /// Removes an image by id (filename). Returns true on success, false if the
+    /// file did not exist or could not be removed.
+    @discardableResult
+    func removeImage(id: String) -> Bool {
+        // Reject path traversal — id must be a plain filename.
+        guard !id.contains("/"), !id.contains("\\"), id != "..", !id.isEmpty else { return false }
+        let url = assetsDirectory.appendingPathComponent(id)
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
+        do {
+            try FileManager.default.removeItem(at: url)
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Private

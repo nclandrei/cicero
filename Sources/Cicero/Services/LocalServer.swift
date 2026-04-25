@@ -546,6 +546,32 @@ final class LocalServer {
             return self.jsonResponse(result)
         }
 
+        server.GET["/images"] = { [weak self] _ in
+            guard let self else { return .internalServerError }
+            let items = self.onMain { () -> [ImageListItem] in
+                guard let store = self.presentation.imageStore else { return [] }
+                return store.listImages()
+            }
+            return self.jsonResponse(ImageListResponse(images: items))
+        }
+
+        server.DELETE["/images/:id"] = { [weak self] request in
+            guard let self else { return .internalServerError }
+            guard let id = request.params[":id"], !id.isEmpty else {
+                return self.jsonError("Missing image id")
+            }
+            let decoded = id.removingPercentEncoding ?? id
+            return self.onMain {
+                guard let store = self.presentation.imageStore else {
+                    return self.jsonError("No image store available. Open or save a presentation first.", status: 404)
+                }
+                guard store.removeImage(id: decoded) else {
+                    return self.jsonError("Image not found: \(decoded)", status: 404)
+                }
+                return self.jsonResponse(SuccessResponse(success: true, message: "Image \(decoded) removed"))
+            }
+        }
+
         server.POST["/images"] = { [weak self] request in
             guard let self else { return .internalServerError }
             guard let body: AddImageRequest = self.decodeBody(request) else {
