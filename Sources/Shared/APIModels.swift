@@ -442,6 +442,30 @@ public struct SaveResponse: Codable, Sendable {
     }
 }
 
+/// Classification of a /save HTTP response into the outcome the MCP layer
+/// should report. Extracted so the decision is unit-testable from
+/// CiceroTests (which only depends on Shared).
+public enum SaveOutcome: Equatable, Sendable {
+    /// Save succeeded and wrote to the given absolute file path.
+    case saved(path: String)
+    /// The presentation has no file path; the caller must call save_as
+    /// (or open/create a file) first.
+    case noPath
+}
+
+extension SaveResponse {
+    /// Classify this response. `success: true` with a non-nil, non-empty
+    /// `filePath` is `.saved(path:)`. Anything else (no path, or success
+    /// false) is treated as `.noPath` — the MCP layer surfaces it as an
+    /// error so callers don't think an in-memory presentation got persisted.
+    public var outcome: SaveOutcome {
+        if success, let filePath, !filePath.isEmpty {
+            return .saved(path: filePath)
+        }
+        return .noPath
+    }
+}
+
 // MARK: - Markdown Model
 
 public struct GetMarkdownResponse: Codable, Sendable {

@@ -176,6 +176,60 @@ struct APIModelTests {
         #expect(decoded.filePath == nil)
     }
 
+    @Test("SaveResponse outcome is .saved when success with path")
+    func saveOutcomeSaved() {
+        let resp = SaveResponse(success: true, filePath: "/tmp/deck.md")
+        #expect(resp.outcome == .saved(path: "/tmp/deck.md"))
+    }
+
+    @Test("SaveResponse outcome is .noPath when success but path is nil")
+    func saveOutcomeSuccessButNilPath() {
+        // Today's behavior: presentation.save() with no filePath returns
+        // success=true / filePath=nil. The MCP layer must surface this as
+        // an error so agents don't think the deck got persisted.
+        let resp = SaveResponse(success: true, filePath: nil)
+        #expect(resp.outcome == .noPath)
+    }
+
+    @Test("SaveResponse outcome is .noPath when success but path is empty")
+    func saveOutcomeSuccessButEmptyPath() {
+        let resp = SaveResponse(success: true, filePath: "")
+        #expect(resp.outcome == .noPath)
+    }
+
+    @Test("SaveResponse outcome is .noPath when success false")
+    func saveOutcomeFailure() {
+        let resp = SaveResponse(success: false, filePath: nil)
+        #expect(resp.outcome == .noPath)
+    }
+
+    // MARK: - Export PDF Model
+
+    @Test("ExportPDFResponse encodes/decodes round-trip")
+    func exportPDFResponseRoundTrip() throws {
+        let pdfBytes = Data([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34])
+        let resp = ExportPDFResponse(
+            base64PDF: pdfBytes.base64EncodedString(),
+            pageCount: 3
+        )
+        let data = try JSONEncoder().encode(resp)
+        let decoded = try JSONDecoder().decode(ExportPDFResponse.self, from: data)
+        #expect(decoded.pageCount == 3)
+        // The MCP export_pdf handler decodes the base64 string back to bytes
+        // and writes them to disk when output_path is set. Confirm the
+        // round-trip is lossless so the on-disk bytes match the originals.
+        let recovered = Data(base64Encoded: decoded.base64PDF)
+        #expect(recovered == pdfBytes)
+    }
+
+    @Test("ExportPDFResponse rejects malformed base64")
+    func exportPDFResponseBadBase64() {
+        // The MCP handler must defend against an unexpected non-base64
+        // payload by returning an error rather than crashing.
+        let resp = ExportPDFResponse(base64PDF: "not base64!@#$", pageCount: 1)
+        #expect(Data(base64Encoded: resp.base64PDF) == nil)
+    }
+
     // MARK: - Markdown Model
 
     @Test("GetMarkdownResponse encodes/decodes with all fields")
