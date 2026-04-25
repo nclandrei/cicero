@@ -50,15 +50,42 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
-      - name: Build release binary
-        run: swift build -c release
+      - name: Build release binaries (universal)
+        run: |
+          # Build per-arch then lipo. SwiftPM's multi-arch single-invocation
+          # has historically choked on some dependencies (Sparkle xcframework,
+          # mixed binary deps); per-arch + lipo is the boring reliable path.
+          swift build -c release --arch arm64
+          ARM_BIN_PATH=$(swift build -c release --arch arm64 --show-bin-path)
+          cp "$ARM_BIN_PATH/Cicero" "$RUNNER_TEMP/Cicero.arm64"
+          cp "$ARM_BIN_PATH/CiceroMCP" "$RUNNER_TEMP/CiceroMCP.arm64"
+
+          swift build -c release --arch x86_64
+          X86_BIN_PATH=$(swift build -c release --arch x86_64 --show-bin-path)
+          cp "$X86_BIN_PATH/Cicero" "$RUNNER_TEMP/Cicero.x86_64"
+          cp "$X86_BIN_PATH/CiceroMCP" "$RUNNER_TEMP/CiceroMCP.x86_64"
+
+          mkdir -p "$RUNNER_TEMP/universal"
+          lipo -create "$RUNNER_TEMP/Cicero.arm64" "$RUNNER_TEMP/Cicero.x86_64" \
+            -output "$RUNNER_TEMP/universal/Cicero"
+          lipo -create "$RUNNER_TEMP/CiceroMCP.arm64" "$RUNNER_TEMP/CiceroMCP.x86_64" \
+            -output "$RUNNER_TEMP/universal/CiceroMCP"
+
+          # Sanity-check both archs are present in each binary.
+          lipo -info "$RUNNER_TEMP/universal/Cicero"
+          lipo -info "$RUNNER_TEMP/universal/CiceroMCP"
+
+          # Reference path for downstream steps. Use the arm64 build dir for
+          # framework copy (Sparkle.framework is itself fat).
+          echo "UNIVERSAL_BIN=$RUNNER_TEMP/universal" >> "$GITHUB_ENV"
+          echo "FRAMEWORK_BIN_PATH=$ARM_BIN_PATH" >> "$GITHUB_ENV"
 
       - name: Create .app bundle
         run: |
           APP="Cicero.app"
-          BIN_PATH=$(swift build -c release --show-bin-path)
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp "$BIN_PATH/Cicero" "$APP/Contents/MacOS/"
+          cp "$UNIVERSAL_BIN/Cicero" "$APP/Contents/MacOS/Cicero"
+          cp "$UNIVERSAL_BIN/CiceroMCP" "$APP/Contents/MacOS/CiceroMCP"
           install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/Cicero"
           cp Sources/Cicero/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
           cat > "$APP/Contents/Info.plist" << PLIST
@@ -98,9 +125,10 @@ jobs:
 
       - name: Embed Sparkle framework
         run: |
-          BIN_PATH=$(swift build -c release --show-bin-path)
+          # Sparkle ships as a fat xcframework; either per-arch build dir has
+          # the same Sparkle.framework, so we just pick the arm64 one.
           mkdir -p Cicero.app/Contents/Frameworks
-          cp -R "$BIN_PATH/Sparkle.framework" Cicero.app/Contents/Frameworks/
+          cp -R "$FRAMEWORK_BIN_PATH/Sparkle.framework" Cicero.app/Contents/Frameworks/
 
       - name: Codesign
         env:
@@ -114,6 +142,17 @@ jobs:
             sort -rz | while IFS= read -r -d '' item; do
             codesign --force --sign "$IDENTITY" --options runtime --timestamp "$item"
           done
+
+          # Sign the bundled CiceroMCP helper executable explicitly. --deep
+          # on the outer bundle is deprecated and unreliable for nested
+          # Mach-O binaries that aren't XPC/dylib/framework. We give it the
+          # same hardened-runtime + entitlements as the host app so it
+          # inherits the notarization ticket cleanly.
+          codesign --force --sign "$IDENTITY" \
+            --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --timestamp \
+            Cicero.app/Contents/MacOS/CiceroMCP
 
           # Sign the main app
           codesign --force --sign "$IDENTITY" \
