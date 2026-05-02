@@ -202,8 +202,7 @@ struct SettingsView: View {
             defaultsSection
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: SettingsLayout.width, height: SettingsLayout.maxHeight)
     }
 
     // MARK: - Defaults section
