@@ -116,6 +116,10 @@ jobs:
           echo "FRAMEWORK_BIN_PATH=$ARM_BIN_PATH" >> "$GITHUB_ENV"
 
       - name: Create .app bundle
+        env:
+          SU_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_EDDSA_PUBLIC_KEY }}
+          CFBUNDLE_VERSION: ${{ steps.version.outputs.tag }}
+          CFBUNDLE_SHORT_VERSION_STRING: ${{ steps.version.outputs.display }}
         run: |
           APP="Cicero.app"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -123,40 +127,20 @@ jobs:
           cp "$UNIVERSAL_BIN/CiceroMCP" "$APP/Contents/MacOS/CiceroMCP"
           install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/Cicero"
           cp Sources/Cicero/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-          cat > "$APP/Contents/Info.plist" << PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key>
-            <string>Cicero</string>
-            <key>CFBundleDisplayName</key>
-            <string>Cicero</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.andreinicolas.Cicero</string>
-            <key>CFBundleVersion</key>
-            <string>${{ steps.version.outputs.tag }}</string>
-            <key>CFBundleShortVersionString</key>
-            <string>${{ steps.version.outputs.display }}</string>
-            <key>CFBundleExecutable</key>
-            <string>Cicero</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>CFBundleIconFile</key>
-            <string>AppIcon</string>
-            <key>LSMinimumSystemVersion</key>
-            <string>14.0</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
-            <key>SUFeedURL</key>
-            <string>https://cicero.nicolaeandrei.com/appcast.xml</string>
-            <key>SUPublicEDKey</key>
-            <string>${{ secrets.SPARKLE_EDDSA_PUBLIC_KEY }}</string>
-            <key>SUEnableAutomaticChecks</key>
-            <true/>
-          </dict>
-          </plist>
-          PLIST
+          # Fill placeholders in the committed Info.plist. Doing this in the
+          # workflow keeps the document-type declarations in version control
+          # (and under test) rather than buried in a heredoc.
+          python3 - "$APP/Contents/Info.plist" << 'PY'
+          import os, sys, pathlib
+          template = pathlib.Path("Info.plist").read_text()
+          for key in ("CFBUNDLE_VERSION", "CFBUNDLE_SHORT_VERSION_STRING", "SU_PUBLIC_ED_KEY"):
+              value = os.environ.get(key)
+              if value is None:
+                  raise SystemExit(f"missing env var {key} for Info.plist substitution")
+              template = template.replace(f"__{key}__", value)
+          pathlib.Path(sys.argv[1]).write_text(template)
+          PY
+          plutil -lint "$APP/Contents/Info.plist"
 
       - name: Embed Sparkle framework
         run: |
