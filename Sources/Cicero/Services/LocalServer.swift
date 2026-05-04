@@ -632,8 +632,18 @@ final class LocalServer {
             }
         }
 
-        server.POST["/close"] = { [weak self] _ in
+        server.POST["/close"] = { [weak self] request in
             guard let self else { return .internalServerError }
+            // Body is optional — agents that haven't been updated still send
+            // an empty POST. Treat any decoding failure as "force not set".
+            let body: CloseRequest = self.decodeBody(request) ?? CloseRequest()
+            let isDirty = self.onMain { self.presentation.isDirty }
+            if ClosePolicy.shouldReject(isDirty: isDirty, force: body.force) {
+                return self.jsonError(
+                    "Unsaved changes would be discarded. Save first, or pass force=true.",
+                    status: 409
+                )
+            }
             self.onMain {
                 self.presentation.filePath = nil
                 self.presentation.loadMarkdown(SlideParser.blankPresentation())

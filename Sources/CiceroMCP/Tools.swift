@@ -260,8 +260,16 @@ enum CiceroTools {
         ),
         Tool(
             name: "close_file",
-            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata.",
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata. Refuses when the buffer has unsaved changes unless force=true.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "force": .object([
+                        "type": "boolean",
+                        "description": "Discard unsaved changes. Required when the buffer is dirty."
+                    ]),
+                ]),
+            ]),
             annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
@@ -875,8 +883,22 @@ enum CiceroToolHandler {
             return textResult("Opened \(path)")
 
         case "close_file":
-            let resp: StatusResponse = try await client.postEmpty("/close")
-            return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+            let force = arguments?["force"]?.boolValue
+            do {
+                let resp: StatusResponse = try await client.post(
+                    "/close", body: CloseRequest(force: force)
+                )
+                return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+            } catch AppClientError.httpError(409, _) {
+                return .init(
+                    content: [.text(
+                        text: "Unsaved changes would be discarded. Save first, or call close_file with force=true.",
+                        annotations: nil,
+                        _meta: nil
+                    )],
+                    isError: true
+                )
+            }
 
         case "new_presentation":
             let title = arguments?["title"]?.stringValue
