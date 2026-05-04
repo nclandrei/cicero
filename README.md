@@ -26,7 +26,7 @@ You can also use the app directly. It has a split-pane editor with live preview,
 - **Font picker** -- Choose from any installed system font directly from the toolbar.
 - **PDF and HTML export** -- Each slide renders at 1920x1080. HTML export is self-contained with reveal.js.
 - **GitHub publishing** -- OAuth device flow authentication. Publish decks as Gists and share via the web viewer.
-- **43 MCP tools** -- Full agent parity. An AI agent can do everything the GUI can: create, edit, reorder, theme, screenshot, present, export, and publish.
+- **59 MCP tools** -- Full agent parity. An AI agent can do everything the GUI can: create, edit, reorder, theme, screenshot, present, export, and publish.
 - **Proctor CLI** -- `swift run Proctor validate deck.md` to lint presentations from the terminal.
 - **File watching** -- Edits to the `.md` file on disk are picked up automatically.
 - **Undo/redo** -- Full edit history with keyboard shortcuts.
