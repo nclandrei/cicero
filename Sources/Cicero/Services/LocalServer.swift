@@ -12,6 +12,10 @@ final class LocalServer {
     private let pdfExportService: PDFExportService
     private let auth: GitHubAuth?
 
+    /// The port the server actually bound to, set by `start()` on success.
+    /// `nil` until a successful bind.
+    private(set) var boundPort: UInt16?
+
     init(presentation: Presentation, auth: GitHubAuth? = nil) {
         self.presentation = presentation
         self.auth = auth
@@ -20,21 +24,67 @@ final class LocalServer {
         setupRoutes()
     }
 
+    /// Bind the HTTP server. The port comes from `AppDefaults.httpPort`
+    /// (user-configurable in Settings) and falls back to the documented
+    /// default when unset. On bind failure, the error is logged and
+    /// surfaced via `presentation.errorMessage` so the user sees an alert
+    /// instead of a launched-but-broken app. On success, the chosen
+    /// port is recorded in a discovery file under
+    /// `~/Library/Application Support/Cicero/server-port` so the bundled
+    /// CiceroMCP proxy can find it.
     func start() {
+        let port = UInt16(clamping: AppDefaults.httpPort)
+        // Bind to loopback only — never accept connections from the LAN.
+        // Without this, Swifter listens on 0.0.0.0 and exposes the API to anyone
+        // on the same network segment.
+        server.listenAddressIPv4 = CiceroConstants.httpLoopbackAddress
         do {
-            // Bind to loopback only — never accept connections from the LAN.
-            // Without this, Swifter listens on 0.0.0.0 and exposes the API to anyone
-            // on the same network segment.
-            server.listenAddressIPv4 = CiceroConstants.httpLoopbackAddress
-            try server.start(CiceroConstants.httpPort, forceIPv4: true)
-            Self.logger.info("HTTP server listening on \(CiceroConstants.httpHost, privacy: .public):\(CiceroConstants.httpPort, privacy: .public)")
+            try server.start(port, forceIPv4: true)
+            boundPort = port
+            Self.writeDiscoveryFile(port: Int(port))
+            Self.logger.info("HTTP server listening on \(CiceroConstants.httpHost, privacy: .public):\(port, privacy: .public)")
         } catch {
-            Self.logger.error("Failed to start HTTP server: \(error.localizedDescription, privacy: .public)")
+            let message = """
+                Cicero couldn't bind to port \(port). \
+                Another process may already be using it (try `lsof -i :\(port)` in Terminal). \
+                Pick a different port in Settings → MCP Server, then restart Cicero.
+                """
+            Self.logger.error("Failed to start HTTP server on port \(port, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DispatchQueue.main.async { [weak presentation] in
+                presentation?.errorMessage = message
+            }
         }
     }
 
     func stop() {
         server.stop()
+        if boundPort != nil {
+            Self.removeDiscoveryFile()
+            boundPort = nil
+        }
+    }
+
+    // MARK: - Port discovery file
+
+    /// Absolute URL of the port discovery file used by CiceroMCP.
+    static func discoveryFileURL() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport
+            .appendingPathComponent("Cicero", isDirectory: true)
+            .appendingPathComponent(PortDiscovery.discoveryFilename)
+    }
+
+    private static func writeDiscoveryFile(port: Int) {
+        let url = discoveryFileURL()
+        let dir = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let payload = PortDiscovery.encode(port)
+        try? payload.write(to: url, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    private static func removeDiscoveryFile() {
+        try? FileManager.default.removeItem(at: discoveryFileURL())
     }
 
     // MARK: - Routes
