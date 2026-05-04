@@ -5,8 +5,33 @@ import Shared
 actor AppClient {
     private let baseURL: String
 
-    init(baseURL: String = CiceroConstants.httpBaseURL) {
+    init(baseURL: String = AppClient.resolveBaseURL()) {
         self.baseURL = baseURL
+    }
+
+    /// Discover the running app's port. Resolution order:
+    ///   1. `CICERO_PORT` env var,
+    ///   2. `~/Library/Application Support/Cicero/server-port` (written
+    ///      by the app on successful bind),
+    ///   3. compiled-in fallback (CiceroConstants.httpPort).
+    /// Always binds to loopback — the host never leaves localhost.
+    static func resolveBaseURL() -> String {
+        let port = PortDiscovery.resolve(
+            env: ProcessInfo.processInfo.environment,
+            fileReader: { try? String(contentsOf: discoveryFileURL(), encoding: .utf8) },
+            fallback: Int(CiceroConstants.httpPort)
+        )
+        return "http://\(CiceroConstants.httpHost):\(port)"
+    }
+
+    /// Mirror of LocalServer.discoveryFileURL — CiceroMCP can't import the
+    /// app target, so the path is duplicated here. Kept in sync via the
+    /// shared `PortDiscovery.discoveryFilename` constant.
+    private static func discoveryFileURL() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport
+            .appendingPathComponent("Cicero", isDirectory: true)
+            .appendingPathComponent(PortDiscovery.discoveryFilename)
     }
 
     // MARK: - Generic request helpers

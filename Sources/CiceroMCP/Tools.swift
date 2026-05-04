@@ -260,8 +260,16 @@ enum CiceroTools {
         ),
         Tool(
             name: "close_file",
-            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata.",
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            description: "Close the current presentation and reset to a blank single-slide deck. Drops file path and metadata. Refuses when the buffer has unsaved changes unless force=true.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "force": .object([
+                        "type": "boolean",
+                        "description": "Discard unsaved changes. Required when the buffer is dirty."
+                    ]),
+                ]),
+            ]),
             annotations: .init(readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
@@ -535,8 +543,16 @@ enum CiceroTools {
 
         Tool(
             name: "save_file",
-            description: "Save the current presentation to disk. Requires a file path (opened or previously saved).",
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            description: "Save the current presentation to disk. Requires a file path (opened or previously saved). Refuses when the file on disk has been modified by another process unless force=true.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "force": .object([
+                        "type": "boolean",
+                        "description": "Overwrite even when the file was modified outside Cicero since the last save. Required after an external-conflict refusal."
+                    ]),
+                ]),
+            ]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
@@ -875,8 +891,22 @@ enum CiceroToolHandler {
             return textResult("Opened \(path)")
 
         case "close_file":
-            let resp: StatusResponse = try await client.postEmpty("/close")
-            return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+            let force = arguments?["force"]?.boolValue
+            do {
+                let resp: StatusResponse = try await client.post(
+                    "/close", body: CloseRequest(force: force)
+                )
+                return textResult("Presentation closed. Now on slide \(resp.currentSlide + 1) of \(resp.totalSlides) (blank).")
+            } catch AppClientError.httpError(409, _) {
+                return .init(
+                    content: [.text(
+                        text: "Unsaved changes would be discarded. Save first, or call close_file with force=true.",
+                        annotations: nil,
+                        _meta: nil
+                    )],
+                    isError: true
+                )
+            }
 
         case "new_presentation":
             let title = arguments?["title"]?.stringValue
@@ -1121,17 +1151,36 @@ enum CiceroToolHandler {
             }
 
         case "save_file":
-            let resp: SaveResponse = try await client.postEmpty("/save")
-            switch resp.outcome {
-            case .saved(let path):
-                return textResult("Saved to \(path)")
-            case .noPath:
+            let force = arguments?["force"]?.boolValue
+            do {
+                let resp: SaveResponse = try await client.post(
+                    "/save", body: SaveRequest(force: force)
+                )
+                switch resp.outcome {
+                case .saved(let path):
+                    return textResult("Saved to \(path)")
+                case .noPath:
+                    // Defensive: reachable only if the server returns a 200
+                    // with no path. The current server returns 409 in that
+                    // case, which is handled by the catch below.
+                    return .init(
+                        content: [.text(
+                            text: PresentationSaveError.noFilePath.errorDescription
+                                ?? "No file path set; call save_as first.",
+                            annotations: nil,
+                            _meta: nil
+                        )],
+                        isError: true
+                    )
+                }
+            } catch AppClientError.httpError(409, let body) {
+                // Pass the server's exact 409 message through so the agent
+                // sees either "No file path set" or the external-conflict
+                // recovery hint (with the absolute path) verbatim.
+                let text = Self.extractErrorMessage(from: body)
+                    ?? "Save refused: a precondition failed."
                 return .init(
-                    content: [.text(
-                        text: "No file path set; call save_as first.",
-                        annotations: nil,
-                        _meta: nil
-                    )],
+                    content: [.text(text: text, annotations: nil, _meta: nil)],
                     isError: true
                 )
             }
@@ -1241,6 +1290,14 @@ enum CiceroToolHandler {
             content: [.text(text: text, annotations: nil, _meta: nil)],
             isError: false
         )
+    }
+
+    /// Pull the `error` field out of a JSON ErrorResponse body. Used to
+    /// surface a server-side 4xx message verbatim to the agent instead of
+    /// the raw "HTTP 409: {…json…}" string.
+    private static func extractErrorMessage(from body: String) -> String? {
+        guard let data = body.data(using: .utf8) else { return nil }
+        return (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.error
     }
 }
 

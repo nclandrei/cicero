@@ -21,6 +21,12 @@ final class Presentation {
     var errorMessage: String?
     let editHistory = EditHistory()
 
+    /// On-disk modification time observed at the most recent successful
+    /// save or load. Used by `save()` to detect that another process
+    /// changed the file out from under us before we overwrite it.
+    /// `nil` means we never observed the file (fresh save_as flow).
+    private(set) var lastSavedMtime: Date?
+
     // MARK: - Presenter Timer
     private var timerState = PresentationTimerState()
     var wallClock: String = TimeFormatting.wallClock()
@@ -252,9 +258,24 @@ final class Presentation {
         rebuildMarkdown()
     }
 
-    func save() throws {
-        guard let path = filePath else { return }
+    /// Persist the in-memory markdown to `filePath`. Throws
+    /// `PresentationSaveError.noFilePath` when no path is set, and
+    /// `PresentationSaveError.externalConflict` when the file on disk has
+    /// been modified by another process since we last touched it. Pass
+    /// `force: true` to skip the conflict check (the manual "Save"
+    /// command does this after asking the user).
+    func save(force: Bool = false) throws {
+        guard let path = filePath else {
+            throw PresentationSaveError.noFilePath
+        }
+        if !force {
+            let onDisk = Self.modificationDate(of: path)
+            if SaveConflictPolicy.shouldRejectSave(lastKnown: lastSavedMtime, currentOnDisk: onDisk) {
+                throw PresentationSaveError.externalConflict(path: path.path)
+            }
+        }
         try markdown.write(to: path, atomically: true, encoding: .utf8)
+        lastSavedMtime = Self.modificationDate(of: path)
         isDirty = false
         autosave.cancel()
         autosaveWorkItem?.cancel()
@@ -271,13 +292,22 @@ final class Presentation {
         }
         try markdown.write(to: url, atomically: true, encoding: .utf8)
         filePath = url
+        lastSavedMtime = Self.modificationDate(of: url)
         isDirty = false
     }
 
     func loadFile(_ url: URL) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         filePath = url
+        lastSavedMtime = Self.modificationDate(of: url)
         loadMarkdown(content)
+    }
+
+    /// Read the file's modification time without throwing. Returns nil
+    /// when the file is missing or the attribute is unavailable.
+    private static func modificationDate(of url: URL) -> Date? {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return attrs?[.modificationDate] as? Date
     }
 
     func loadSamplePresentation() {
@@ -473,6 +503,11 @@ final class Presentation {
             try autosave.tick(at: Date()) { [weak self] in
                 try self?.save()
             }
+        } catch PresentationSaveError.noFilePath {
+            // The deck was closed between scheduling and firing. Nothing to
+            // surface — the autosave is a no-op by design when there's no
+            // file path, and this is the expected race, not a failure.
+            return
         } catch {
             errorMessage = "Autosave failed: \(error.localizedDescription)"
         }

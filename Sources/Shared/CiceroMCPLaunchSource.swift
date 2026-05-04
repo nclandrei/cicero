@@ -99,25 +99,29 @@ public enum CiceroMCPLaunchSource: Equatable, Sendable {
         }
     }
 
-    /// Codex-style TOML block.
+    /// Codex-style TOML block. Paths are emitted via `TOMLString.quote`,
+    /// which prefers a literal string for typical filesystem paths and
+    /// only falls back to an escaped basic string when the path contains
+    /// a single quote. Spaces, backslashes, and double quotes round-trip
+    /// untouched in the literal-string form.
     public func tomlEntry() -> String {
         switch self {
         case .bundled(let url):
-            let escaped = url.path.replacingOccurrences(of: "\\", with: "\\\\")
+            let command = TOMLString.quote(url.path)
             return """
 
                 [mcp_servers.cicero]
-                command = "\(escaped)"
+                command = \(command)
                 args = []
 
                 """
         case .source(let packagePath):
-            let escaped = packagePath.path.replacingOccurrences(of: "\\", with: "\\\\")
+            let path = TOMLString.quote(packagePath.path)
             return """
 
                 [mcp_servers.cicero]
                 command = "swift"
-                args = ["run", "--package-path", "\(escaped)", "CiceroMCP"]
+                args = ["run", "--package-path", \(path), "CiceroMCP"]
 
                 """
         }

@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 
 actor GitHubAuth {
     private let clientId: String
@@ -81,12 +82,30 @@ actor GitHubAuth {
         throw AuthError.codeExpired
     }
 
+    /// Re-hydrate the in-memory session from the on-disk token, then verify
+    /// the token against GitHub. If GitHub explicitly rejects the token
+    /// (401/403), drop both the in-memory copy and the on-disk file so
+    /// `isAuthenticated` reports false and the user is prompted to sign
+    /// back in. Transient failures (5xx, transport errors) leave the
+    /// token in place so a network blip doesn't sign the user out.
     func restoreSession() async {
         if self.token == nil {
             self.token = Self.loadTokenFromFile()
         }
         guard let token = self.token else { return }
-        self.username = try? await fetchUsername(token: token)
+        let outcome = await validateToken(token)
+        switch outcome {
+        case .valid(let username):
+            self.username = username
+        case .unauthorized:
+            self.token = nil
+            self.username = nil
+            deleteTokenFromFile()
+        case .transient:
+            // Keep the token. Username stays nil until the next successful
+            // call. The user is still considered authenticated for now.
+            self.username = nil
+        }
     }
 
     func signOut() {
@@ -152,6 +171,33 @@ actor GitHubAuth {
         }
 
         return login
+    }
+
+    /// Validate a stored token via `/user`. Returns a classified outcome
+    /// instead of throwing so `restoreSession` can decide whether to clear
+    /// the on-disk token (auth failure) or keep it (transient failure).
+    private func validateToken(_ token: String) async -> TokenValidationOutcome {
+        var request = URLRequest(url: URL(string: "https://api.github.com/user")!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Cicero", forHTTPHeaderField: "User-Agent")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            return .transient
+        }
+        guard let http = response as? HTTPURLResponse else {
+            return .transient
+        }
+        var login: String? = nil
+        if http.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        {
+            login = json["login"] as? String
+        }
+        return TokenValidationClassifier.classify(statusCode: http.statusCode, username: login)
     }
 
     // MARK: - File storage

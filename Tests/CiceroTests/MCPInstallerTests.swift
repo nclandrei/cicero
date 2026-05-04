@@ -184,7 +184,9 @@ struct MCPInstallerRenderingTests {
         let toml = source.tomlEntry()
 
         #expect(toml.contains("[mcp_servers.cicero]"))
-        #expect(toml.contains("command = \"\(binary.path)\""))
+        // Paths are emitted as TOML literal strings (single-quoted) so
+        // backslashes and double quotes round-trip untouched.
+        #expect(toml.contains("command = '\(binary.path)'"))
         #expect(toml.contains("args = []"))
         #expect(!toml.contains("swift"))
     }
@@ -198,7 +200,31 @@ struct MCPInstallerRenderingTests {
 
         #expect(toml.contains("[mcp_servers.cicero]"))
         #expect(toml.contains("command = \"swift\""))
-        #expect(toml.contains("\"run\", \"--package-path\", \"\(pkg.path)\", \"CiceroMCP\""))
+        #expect(toml.contains("\"run\", \"--package-path\", '\(pkg.path)', \"CiceroMCP\""))
+    }
+
+    @Test("Bundled TOML entry tolerates spaces in the path")
+    func test_renderedTOML_bundled_pathWithSpaces() {
+        // The original hand-rolled implementation only escaped backslashes,
+        // so any path-with-double-quote would have produced invalid TOML.
+        // The literal-string form leaves spaces and quotes alone.
+        let binary = URL(fileURLWithPath: "/Users/Foo Bar/cicero-mcp")
+        let source = CiceroMCPLaunchSource.bundled(binary)
+
+        let toml = source.tomlEntry()
+
+        #expect(toml.contains("command = '/Users/Foo Bar/cicero-mcp'"))
+    }
+
+    @Test("Source TOML entry falls back to escaped basic string when path contains a single quote")
+    func test_renderedTOML_source_singleQuote() {
+        let pkg = URL(fileURLWithPath: "/Users/o'brien/cicero")
+        let source = CiceroMCPLaunchSource.source(packagePath: pkg)
+
+        let toml = source.tomlEntry()
+
+        // Single quote in the path forces a basic (double-quoted) string.
+        #expect(toml.contains("\"--package-path\", \"/Users/o'brien/cicero\""))
     }
 
     @Test("Display path: bundled returns binary path, source returns package dir")

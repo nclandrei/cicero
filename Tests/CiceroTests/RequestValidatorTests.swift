@@ -96,4 +96,26 @@ struct RequestValidatorTests {
         #expect(!CuratedFonts.all.isEmpty)
         #expect(CuratedFonts.all.contains("SF Pro Display"))
     }
+
+    // MARK: - validateFindReplaceQuery
+
+    @Test("Non-empty query is valid")
+    func findReplaceQueryNonEmptyValid() {
+        #expect(RequestValidator.validateFindReplaceQuery("foo") == nil)
+    }
+
+    @Test("Empty query is rejected")
+    func findReplaceQueryEmptyInvalid() {
+        let err = RequestValidator.validateFindReplaceQuery("")
+        #expect(err != nil)
+        #expect(err!.lowercased().contains("query"))
+    }
+
+    @Test("Whitespace-only query is rejected")
+    func findReplaceQueryWhitespaceInvalid() {
+        // Whitespace-only would mass-rewrite every slide that contains a space
+        // — the most common content character. Reject it explicitly.
+        let err = RequestValidator.validateFindReplaceQuery("   \n\t")
+        #expect(err != nil)
+    }
 }

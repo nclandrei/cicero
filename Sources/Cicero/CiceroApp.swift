@@ -98,8 +98,12 @@ struct CiceroApp: App {
                             try presentation.loadFile(url)
                             fileWatcher = FileWatcher(path: url.path) {
                                 DispatchQueue.main.async { [presentation] in
-                                    guard let data = try? String(contentsOf: url, encoding: .utf8) else { return }
-                                    presentation.loadMarkdown(data)
+                                    // Re-route through loadFile so the
+                                    // observed mtime is refreshed; the next
+                                    // save() conflict check needs the new
+                                    // baseline or every save would be
+                                    // rejected as an external conflict.
+                                    try? presentation.loadFile(url)
                                 }
                             }
                         } catch {
