@@ -325,6 +325,9 @@ final class LocalServer {
             guard let body: FindReplaceRequest = self.decodeBody(request) else {
                 return self.jsonError("Invalid request body. Expected {\"query\": String, \"replacement\": String, \"slide_indices\"?: [Int], \"case_sensitive\"?: Bool}")
             }
+            if let err = RequestValidator.validateFindReplaceQuery(body.query) {
+                return self.jsonError(err)
+            }
             return self.onMain {
                 let count = self.presentation.slides.count
                 if let provided = body.slideIndices,

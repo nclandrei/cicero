@@ -63,4 +63,16 @@ public enum RequestValidator {
         }
         return nil
     }
+
+    /// Validate a find-and-replace query. An empty or whitespace-only query
+    /// is rejected so callers don't accidentally mass-rewrite content (an
+    /// empty needle silently matches nothing, but whitespace-only would
+    /// match the most common character in every slide).
+    public static func validateFindReplaceQuery(_ query: String) -> String? {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "query must be a non-empty, non-whitespace string"
+        }
+        return nil
+    }
 }
