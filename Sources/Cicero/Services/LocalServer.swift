@@ -982,11 +982,14 @@ final class LocalServer {
             }
         }
 
-        server.POST["/save"] = { [weak self] _ in
+        server.POST["/save"] = { [weak self] request in
             guard let self else { return .internalServerError }
+            // Body is optional — older clients still POST empty.
+            let body: SaveRequest = self.decodeBody(request) ?? SaveRequest()
+            let force = body.force ?? false
             do {
                 let filePath = try self.onMain { () -> String? in
-                    try self.presentation.save()
+                    try self.presentation.save(force: force)
                     return self.presentation.filePath?.path
                 }
                 return self.jsonResponse(SaveResponse(success: true, filePath: filePath))
@@ -996,6 +999,13 @@ final class LocalServer {
                 // /save_as first.
                 return self.jsonError(
                     PresentationSaveError.noFilePath.errorDescription ?? "No file path set",
+                    status: 409
+                )
+            } catch let err as PresentationSaveError {
+                // 409 Conflict: external write detected. Caller must reload
+                // or pass force=true.
+                return self.jsonError(
+                    err.errorDescription ?? "Save conflict",
                     status: 409
                 )
             } catch {

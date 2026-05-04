@@ -614,6 +614,17 @@ public struct SetTransitionRequest: Codable, Sendable {
 
 // MARK: - Save Model
 
+public struct SaveRequest: Codable, Sendable {
+    /// Skip the external-modification check and overwrite anyway.
+    /// Optional; nil/false means refuse when the file on disk has
+    /// changed since Cicero last touched it.
+    public let force: Bool?
+
+    public init(force: Bool? = nil) {
+        self.force = force
+    }
+}
+
 public struct SaveResponse: Codable, Sendable {
     public let success: Bool
     public let filePath: String?

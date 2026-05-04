@@ -543,8 +543,16 @@ enum CiceroTools {
 
         Tool(
             name: "save_file",
-            description: "Save the current presentation to disk. Requires a file path (opened or previously saved).",
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
+            description: "Save the current presentation to disk. Requires a file path (opened or previously saved). Refuses when the file on disk has been modified by another process unless force=true.",
+            inputSchema: .object([
+                "type": "object",
+                "properties": .object([
+                    "force": .object([
+                        "type": "boolean",
+                        "description": "Overwrite even when the file was modified outside Cicero since the last save. Required after an external-conflict refusal."
+                    ]),
+                ]),
+            ]),
             annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
         ),
         Tool(
@@ -1143,8 +1151,11 @@ enum CiceroToolHandler {
             }
 
         case "save_file":
+            let force = arguments?["force"]?.boolValue
             do {
-                let resp: SaveResponse = try await client.postEmpty("/save")
+                let resp: SaveResponse = try await client.post(
+                    "/save", body: SaveRequest(force: force)
+                )
                 switch resp.outcome {
                 case .saved(let path):
                     return textResult("Saved to \(path)")
@@ -1162,14 +1173,14 @@ enum CiceroToolHandler {
                         isError: true
                     )
                 }
-            } catch AppClientError.httpError(409, _) {
+            } catch AppClientError.httpError(409, let body) {
+                // Pass the server's exact 409 message through so the agent
+                // sees either "No file path set" or the external-conflict
+                // recovery hint (with the absolute path) verbatim.
+                let text = Self.extractErrorMessage(from: body)
+                    ?? "Save refused: a precondition failed."
                 return .init(
-                    content: [.text(
-                        text: PresentationSaveError.noFilePath.errorDescription
-                            ?? "No file path set; call save_as first.",
-                        annotations: nil,
-                        _meta: nil
-                    )],
+                    content: [.text(text: text, annotations: nil, _meta: nil)],
                     isError: true
                 )
             }
@@ -1279,6 +1290,14 @@ enum CiceroToolHandler {
             content: [.text(text: text, annotations: nil, _meta: nil)],
             isError: false
         )
+    }
+
+    /// Pull the `error` field out of a JSON ErrorResponse body. Used to
+    /// surface a server-side 4xx message verbatim to the agent instead of
+    /// the raw "HTTP 409: {…json…}" string.
+    private static func extractErrorMessage(from body: String) -> String? {
+        guard let data = body.data(using: .utf8) else { return nil }
+        return (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.error
     }
 }
 
