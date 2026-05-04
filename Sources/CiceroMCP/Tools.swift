@@ -1121,14 +1121,30 @@ enum CiceroToolHandler {
             }
 
         case "save_file":
-            let resp: SaveResponse = try await client.postEmpty("/save")
-            switch resp.outcome {
-            case .saved(let path):
-                return textResult("Saved to \(path)")
-            case .noPath:
+            do {
+                let resp: SaveResponse = try await client.postEmpty("/save")
+                switch resp.outcome {
+                case .saved(let path):
+                    return textResult("Saved to \(path)")
+                case .noPath:
+                    // Defensive: reachable only if the server returns a 200
+                    // with no path. The current server returns 409 in that
+                    // case, which is handled by the catch below.
+                    return .init(
+                        content: [.text(
+                            text: PresentationSaveError.noFilePath.errorDescription
+                                ?? "No file path set; call save_as first.",
+                            annotations: nil,
+                            _meta: nil
+                        )],
+                        isError: true
+                    )
+                }
+            } catch AppClientError.httpError(409, _) {
                 return .init(
                     content: [.text(
-                        text: "No file path set; call save_as first.",
+                        text: PresentationSaveError.noFilePath.errorDescription
+                            ?? "No file path set; call save_as first.",
                         annotations: nil,
                         _meta: nil
                     )],

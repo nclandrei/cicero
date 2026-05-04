@@ -253,7 +253,9 @@ final class Presentation {
     }
 
     func save() throws {
-        guard let path = filePath else { return }
+        guard let path = filePath else {
+            throw PresentationSaveError.noFilePath
+        }
         try markdown.write(to: path, atomically: true, encoding: .utf8)
         isDirty = false
         autosave.cancel()
@@ -473,6 +475,11 @@ final class Presentation {
             try autosave.tick(at: Date()) { [weak self] in
                 try self?.save()
             }
+        } catch PresentationSaveError.noFilePath {
+            // The deck was closed between scheduling and firing. Nothing to
+            // surface — the autosave is a no-op by design when there's no
+            // file path, and this is the expected race, not a failure.
+            return
         } catch {
             errorMessage = "Autosave failed: \(error.localizedDescription)"
         }

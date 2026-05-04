@@ -980,6 +980,14 @@ final class LocalServer {
                     return self.presentation.filePath?.path
                 }
                 return self.jsonResponse(SaveResponse(success: true, filePath: filePath))
+            } catch PresentationSaveError.noFilePath {
+                // 409 Conflict: the request is well-formed but the resource
+                // (the deck on disk) doesn't exist yet. Caller must call
+                // /save_as first.
+                return self.jsonError(
+                    PresentationSaveError.noFilePath.errorDescription ?? "No file path set",
+                    status: 409
+                )
             } catch {
                 return self.jsonError("Failed to save: \(error.localizedDescription)")
             }
