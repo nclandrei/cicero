@@ -257,5 +257,17 @@
       sparkle:edSignature="XfSAQLdLi0OKw8Oltp9nLh7jbs+pLY12Jx2j4/CpIu0cdKgjwZjpjaQ00DMfcVe5tl2ocF1Md3ElGi/chdvlCw=="
     />
   </item>
+      <item>
+    <title>Cicero v20260510.185935</title>
+    <pubDate>Sun, 10 May 2026 19:04:53 +0000</pubDate>
+    <sparkle:version>20260510.185935</sparkle:version>
+    <sparkle:shortVersionString>1.5.2</sparkle:shortVersionString>
+    <enclosure
+      url="https://github.com/nclandrei/cicero/releases/download/v20260510.185935/Cicero.zip"
+      length="11135862"
+      type="application/octet-stream"
+      sparkle:edSignature="gxUaOvtgPD73/beVEuJ4iQGhK/rGg/oSXyNr/k2GZYHwdnyjoJ/xO+5Zjj1++tvB3ohvGEkmx59mpv/D5St0Cg=="
+    />
+  </item>
   </channel>
 </rss>
