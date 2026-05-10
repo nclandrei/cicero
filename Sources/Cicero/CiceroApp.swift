@@ -181,6 +181,20 @@ struct CiceroApp: App {
         }
 
         .commands {
+            CommandGroup(after: .pasteboard) {
+                Menu("Find") {
+                    ForEach(FindAction.allCases, id: \.self) { action in
+                        Button(action.title) { dispatchFindAction(action) }
+                            .keyboardShortcut(
+                                KeyEquivalent(action.key),
+                                modifiers: action.swiftUIModifiers
+                            )
+                    }
+                }
+            }
+        }
+
+        .commands {
             CommandGroup(replacing: .sidebar) {
                 Button("Toggle Sidebar") {
                     NotificationCenter.default.post(name: .toggleSidebar, object: nil)
@@ -277,6 +291,16 @@ struct CiceroApp: App {
         }
     }
 
+    private func dispatchFindAction(_ action: FindAction) {
+        let sender = NSMenuItem(title: action.title, action: nil, keyEquivalent: "")
+        sender.tag = action.tag
+        NSApp.sendAction(
+            #selector(TextFinderActionResponder.performTextFinderAction(_:)),
+            to: nil,
+            from: sender
+        )
+    }
+
     private func signOut() {
         Task {
             await auth.signOut()
@@ -285,6 +309,19 @@ struct CiceroApp: App {
                 githubUsername = nil
             }
         }
+    }
+}
+
+@objc private protocol TextFinderActionResponder {
+    func performTextFinderAction(_ sender: Any?)
+}
+
+private extension FindAction {
+    var swiftUIModifiers: EventModifiers {
+        var modifiers: EventModifiers = [.command]
+        if requiresShift { modifiers.insert(.shift) }
+        if requiresOption { modifiers.insert(.option) }
+        return modifiers
     }
 }
 
